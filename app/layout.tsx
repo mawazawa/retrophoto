@@ -4,7 +4,11 @@ import { Analytics } from '@vercel/analytics/react'
 import './globals.css'
 import { RegisterServiceWorker } from './register-sw'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap', // T085: Optimize font loading
+  preload: true,
+})
 
 export const metadata: Metadata = {
   title: 'RetroPhoto - Restore Old Photos in Seconds',

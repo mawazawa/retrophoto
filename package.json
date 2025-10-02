@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "lighthouse": "lhci autorun",
+    "analyze": "ANALYZE=true next build"
   },
   "keywords": [],
   "author": "",
@@ -52,6 +54,7 @@
   "devDependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
     "@lhci/cli": "^0.15.1",
+    "@next/bundle-analyzer": "^15.5.4",
     "@playwright/test": "^1.55.1",
     "@sentry/nextjs": "^10.17.0",
     "@testing-library/jest-dom": "^6.9.1",

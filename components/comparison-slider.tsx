@@ -1,12 +1,16 @@
 "use client"
 
-import { useState } from 'react'
-import {
-  ReactCompareSlider,
-  ReactCompareSliderImage
-} from 'react-compare-slider'
+import { useState, lazy, Suspense } from 'react'
 import { ZoomIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+// Lazy load slider for performance (T082)
+const ReactCompareSlider = lazy(() =>
+  import('react-compare-slider').then(mod => ({ default: mod.ReactCompareSlider }))
+)
+const ReactCompareSliderImage = lazy(() =>
+  import('react-compare-slider').then(mod => ({ default: mod.ReactCompareSliderImage }))
+)
 
 export function ComparisonSlider({
   originalUrl,
@@ -32,32 +36,38 @@ export function ComparisonSlider({
 
   return (
     <div className="relative w-full h-full">
-      <ReactCompareSlider
-        itemOne={
-          <ReactCompareSliderImage
-            src={originalUrl}
-            alt="Original photo"
-            className="object-contain"
-          />
-        }
-        itemTwo={
-          <ReactCompareSliderImage
-            src={restoredUrl}
-            alt="Restored photo"
-            className="object-contain"
-          />
-        }
-        position={position}
-        onPositionChange={setPosition}
-        onKeyDown={handleKeyDown}
-        className="h-full focus:outline-none focus:ring-2 focus:ring-primary"
-        tabIndex={0}
-        role="slider"
-        aria-label="Before and after comparison slider"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={position}
-      />
+      <Suspense fallback={
+        <div className="w-full h-full flex items-center justify-center bg-muted">
+          <div className="text-sm text-muted-foreground">Loading comparison...</div>
+        </div>
+      }>
+        <ReactCompareSlider
+          itemOne={
+            <ReactCompareSliderImage
+              src={originalUrl}
+              alt="Original photo"
+              className="object-contain"
+            />
+          }
+          itemTwo={
+            <ReactCompareSliderImage
+              src={restoredUrl}
+              alt="Restored photo"
+              className="object-contain"
+            />
+          }
+          position={position}
+          onPositionChange={setPosition}
+          onKeyDown={handleKeyDown}
+          className="h-full focus:outline-none focus:ring-2 focus:ring-primary"
+          tabIndex={0}
+          role="slider"
+          aria-label="Before and after comparison slider"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={position}
+        />
+      </Suspense>
 
       {onZoom && (
         <Button
