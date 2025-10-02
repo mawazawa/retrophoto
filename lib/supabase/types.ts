@@ -7,21 +7,24 @@ export type Database = {
         Row: {
           id: string;
           fingerprint: string;
-          restorations_used: number;
+          restore_count: number;
+          last_restore_at: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           fingerprint: string;
-          restorations_used?: number;
+          restore_count?: number;
+          last_restore_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           fingerprint?: string;
-          restorations_used?: number;
+          restore_count?: number;
+          last_restore_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -59,6 +62,8 @@ export type Database = {
           restored_url: string;
           og_card_url: string | null;
           gif_url: string | null;
+          deep_link: string | null;
+          watermark_applied: boolean;
           created_at: string;
         };
         Insert: {
@@ -67,6 +72,8 @@ export type Database = {
           restored_url: string;
           og_card_url?: string | null;
           gif_url?: string | null;
+          deep_link?: string | null;
+          watermark_applied?: boolean;
           created_at?: string;
         };
         Update: {
@@ -75,6 +82,8 @@ export type Database = {
           restored_url?: string;
           og_card_url?: string | null;
           gif_url?: string | null;
+          deep_link?: string | null;
+          watermark_applied?: boolean;
           created_at?: string;
         };
       };
