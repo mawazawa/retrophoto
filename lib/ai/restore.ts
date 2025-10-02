@@ -7,7 +7,7 @@ const replicate = new Replicate({
 
 export async function restoreImage(imageUrl: string): Promise<string> {
   const run = async () => {
-    const output = (await replicate.run(
+    const output = await replicate.run(
       'sczhou/codeformer:7de2ea26c616d5bf2245ad0d5e24f0ff9a6204578a5c876db53142edd9d2cd56',
       {
         input: {
@@ -16,7 +16,12 @@ export async function restoreImage(imageUrl: string): Promise<string> {
           upscale: 2,
         },
       }
-    )) as string;
+    );
+
+    // Replicate returns a string URL for this model
+    if (typeof output !== 'string') {
+      throw new Error('Unexpected output format from AI model');
+    }
 
     return output;
   };
@@ -28,7 +33,7 @@ export async function restoreImage(imageUrl: string): Promise<string> {
     onFailedAttempt: (error) => {
       console.error(
         `AI restoration attempt ${error.attemptNumber} failed:`,
-        error.message
+        (error as Error).message
       );
     },
   });

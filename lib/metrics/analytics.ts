@@ -9,9 +9,7 @@ export async function trackTTM(
   await supabase.from('analytics_events').insert({
     event_type: 'restore_complete',
     session_id: sessionId,
-    metadata: {
-      ttm_seconds: ttmSeconds,
-    },
+    ttm_seconds: ttmSeconds,
     created_at: new Date().toISOString(),
   });
 }
@@ -25,9 +23,7 @@ export async function trackNSM(
   await supabase.from('analytics_events').insert({
     event_type: 'upload',
     session_id: sessionId,
-    metadata: {
-      nsm_seconds: nsmSeconds,
-    },
+    ttm_seconds: nsmSeconds,
     created_at: new Date().toISOString(),
   });
 }

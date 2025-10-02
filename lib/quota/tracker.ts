@@ -34,7 +34,7 @@ export async function incrementQuota(fingerprint: string): Promise<void> {
   // Try to get existing quota record
   const { data: existing } = await supabase
     .from('user_quota')
-    .select('id, restore_count')
+    .select('fingerprint, restore_count')
     .eq('fingerprint', fingerprint)
     .single();
 
@@ -46,7 +46,7 @@ export async function incrementQuota(fingerprint: string): Promise<void> {
         restore_count: existing.restore_count + 1,
         last_restore_at: new Date().toISOString(),
       })
-      .eq('id', existing.id);
+      .eq('fingerprint', fingerprint);
 
     if (error) throw error;
   } else {

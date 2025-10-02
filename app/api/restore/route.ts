@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error: sessionError } = await supabase
       .from('upload_sessions')
       .insert({
-        fingerprint,
+        user_fingerprint: fingerprint,
         original_url: originalUrl,
         status: 'processing',
       })
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     // Update session status
     await supabase
       .from('upload_sessions')
-      .update({ status: 'completed' })
+      .update({ status: 'complete' })
       .eq('id', session.id);
 
     // Increment quota

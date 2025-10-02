@@ -4,16 +4,14 @@ import { createClient } from '@/lib/supabase/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { event_type, session_id, nsm_seconds } = body;
+    const { event_type, session_id, nsm_seconds, ttm_seconds } = body;
 
     const supabase = await createClient();
 
     await supabase.from('analytics_events').insert({
       event_type,
       session_id: session_id || null,
-      metadata: {
-        ...(nsm_seconds && { nsm_seconds }),
-      },
+      ttm_seconds: ttm_seconds || nsm_seconds || null,
       created_at: new Date().toISOString(),
     });
 
