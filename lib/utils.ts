@@ -12,14 +12,14 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
   if (!ALLOWED_TYPES.includes(file.type)) {
     return {
       valid: false,
-      error: 'Please upload a JPG, PNG, HEIC, or WEBP image'
+      error: 'Please upload a valid image file (JPG, PNG, HEIC, WEBP).'
     }
   }
 
   if (file.size > MAX_SIZE) {
     return {
       valid: false,
-      error: 'File size must be less than 20MB'
+      error: 'Photo too large. Please upload images under 20MB.'
     }
   }
 
