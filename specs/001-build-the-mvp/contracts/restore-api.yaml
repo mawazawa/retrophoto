@@ -1,0 +1,201 @@
+openapi: 3.0.0
+info:
+  title: Restore API
+  description: AI photo restoration endpoint for RetroPhoto MVP
+  version: 1.0.0
+  contact:
+    name: RetroPhoto API
+    url: https://retrophoto.app
+
+servers:
+  - url: https://retrophoto.app/api
+    description: Production
+  - url: http://localhost:3000/api
+    description: Local development
+
+paths:
+  /restore:
+    post:
+      summary: Restore uploaded photo using AI
+      description: |
+        Accepts an image file upload, processes it through NanoBana AI model,
+        and returns restored result with share artifacts (OG card, GIF, deep link).
+
+        Constitutional requirements:
+        - TTM p95: ≤12 seconds (Principle VIII)
+        - Server-side only processing (Principle VI: Privacy)
+        - Automatic retry once on failure (Principle VIII: SLO)
+        - Free tier quota: 1 restore per fingerprint (Principle VII)
+
+      operationId: restorePhoto
+      tags:
+        - Restoration
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Image file (JPEG, PNG, HEIC, WEBP)
+                fingerprint:
+                  type: string
+                  description: Browser fingerprint from FingerprintJS (for quota tracking)
+                  minLength: 20
+                  maxLength: 64
+              required:
+                - file
+                - fingerprint
+            encoding:
+              file:
+                contentType: image/jpeg, image/png, image/heic, image/webp
+
+      responses:
+        '200':
+          description: Restoration complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                    format: uuid
+                    description: Unique session identifier (for deep linking)
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+                  restored_url:
+                    type: string
+                    format: uri
+                    description: URL for restored image (medium-res, 2048px longest edge)
+                    example: "https://abc123.supabase.co/storage/v1/object/public/restorations/restored-550e8400.jpg"
+                  og_card_url:
+                    type: string
+                    format: uri
+                    description: URL for OpenGraph card (before→after split view)
+                    example: "https://retrophoto.app/api/og-card/550e8400-e29b-41d4-a716-446655440000"
+                  gif_url:
+                    type: string
+                    format: uri
+                    description: URL for animated GIF (2-3s wipe reveal, <5MB)
+                    example: "https://abc123.supabase.co/storage/v1/object/public/restorations/reveal-550e8400.gif"
+                  deep_link:
+                    type: string
+                    format: uri
+                    description: Shareable URL to recreate slider experience
+                    example: "https://retrophoto.app/result/550e8400-e29b-41d4-a716-446655440000"
+                  ttm_seconds:
+                    type: number
+                    format: float
+                    description: Time-to-Magic duration (upload to result)
+                    minimum: 0
+                    maximum: 120
+                    example: 8.432
+                required:
+                  - session_id
+                  - restored_url
+                  - og_card_url
+                  - gif_url
+                  - deep_link
+                  - ttm_seconds
+
+        '400':
+          description: Invalid file (type, size, or format)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+                    example: "Photo too large. Please upload images under 20MB."
+                  error_code:
+                    type: string
+                    enum:
+                      - FILE_TOO_LARGE
+                      - INVALID_FILE_TYPE
+                      - CORRUPTED_FILE
+                      - MISSING_FINGERPRINT
+                    example: "FILE_TOO_LARGE"
+
+        '429':
+          description: Quota exceeded (free tier limit reached)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+                    example: "Free restore limit reached. Upgrade for unlimited restorations."
+                  error_code:
+                    type: string
+                    enum:
+                      - QUOTA_EXCEEDED
+                    example: "QUOTA_EXCEEDED"
+                  upgrade_url:
+                    type: string
+                    format: uri
+                    description: URL to upgrade flow
+                    example: "https://retrophoto.app/upgrade"
+
+        '500':
+          description: Processing failed (after retry)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+                    example: "Restoration failed. Please try again or contact support."
+                  error_code:
+                    type: string
+                    enum:
+                      - AI_MODEL_ERROR
+                      - STORAGE_ERROR
+                      - TIMEOUT
+                    example: "AI_MODEL_ERROR"
+                  session_id:
+                    type: string
+                    format: uuid
+                    description: Failed session ID (for support debugging)
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+
+        '503':
+          description: Service temporarily unavailable (rate limit or maintenance)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+                    example: "Service temporarily unavailable. Please try again in a few moments."
+                  error_code:
+                    type: string
+                    enum:
+                      - RATE_LIMIT_EXCEEDED
+                      - MAINTENANCE
+                    example: "RATE_LIMIT_EXCEEDED"
+                  retry_after:
+                    type: integer
+                    description: Seconds to wait before retrying
+                    example: 60
+
+      security:
+        - {}  # No authentication required for MVP (quota via fingerprint)
+
+components:
+  securitySchemes: {}
+
+tags:
+  - name: Restoration
+    description: AI photo restoration operations
