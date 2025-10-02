@@ -66,6 +66,6 @@ export async function generateRevealGIF(
   }
 
   // Finalize GIF
-  const gifData = gif.end();
-  return Buffer.from(gifData.slice(0, gif.bytesView));
+  gif.end();
+  return Buffer.from(buffer.slice(0, gif.bytesView));
 }

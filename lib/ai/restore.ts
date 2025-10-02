@@ -33,7 +33,7 @@ export async function restoreImage(imageUrl: string): Promise<string> {
     onFailedAttempt: (error) => {
       console.error(
         `AI restoration attempt ${error.attemptNumber} failed:`,
-        (error as Error).message
+        error.retriesLeft
       );
     },
   });
