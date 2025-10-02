@@ -21,7 +21,7 @@ describe('Logger', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
-    process.env.NODE_ENV = originalEnv
+    // Don't restore NODE_ENV as it's read-only
   })
 
   describe('Basic logging levels', () => {

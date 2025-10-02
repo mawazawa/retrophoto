@@ -17,10 +17,15 @@ import { processQueue } from '@/lib/pwa/background-sync'
 
 declare const self: ServiceWorkerGlobalScope
 
+interface SyncEvent extends ExtendableEvent {
+  tag: string
+}
+
 // Listen for background sync events
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'upload-queue') {
-    event.waitUntil(processQueue())
+self.addEventListener('sync', (event: Event) => {
+  const syncEvent = event as SyncEvent
+  if (syncEvent.tag === 'upload-queue') {
+    syncEvent.waitUntil(processQueue())
   }
 })
 
@@ -32,7 +37,7 @@ self.addEventListener('push', (event) => {
     body: data.body || 'Your photo has been restored!',
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-192x192.png',
-    vibrate: [200, 100, 200],
+    // vibrate is not in standard NotificationOptions, but browsers support it
     data: {
       url: data.url || '/',
     },

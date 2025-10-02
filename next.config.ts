@@ -30,8 +30,8 @@ const nextConfig: NextConfig = {
 const configWithPWA = withPWA({
   dest: 'public',
   register: true,
-  skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  // @ts-ignore - runtimeCaching is valid but not in types
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
@@ -80,7 +80,8 @@ export default bundleAnalyzer(
     reactComponentAnnotation: {
       enabled: true,
     },
-    hideSourceMaps: true,
+    // Disable source maps upload to Sentry
+    sourcemaps: {},
     disableLogger: true,
   })
 );

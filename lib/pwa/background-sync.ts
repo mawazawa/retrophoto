@@ -32,9 +32,17 @@ export async function queueUpload(file: File, fingerprint: string): Promise<stri
   await saveQueue(queue)
 
   // Request background sync if supported
-  if ('serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype) {
-    const registration = await navigator.serviceWorker.ready
-    await registration.sync.register('upload-queue')
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.ready
+      // @ts-ignore - sync API is experimental but widely supported
+      if (registration.sync) {
+        // @ts-ignore
+        await registration.sync.register('upload-queue')
+      }
+    } catch (error) {
+      console.warn('Background sync not available:', error)
+    }
   }
 
   return id
@@ -50,7 +58,11 @@ export async function getQueue(): Promise<QueuedUpload[]> {
     const db = await openDB()
     const transaction = db.transaction('uploads', 'readonly')
     const store = transaction.objectStore('uploads')
-    return await store.getAll()
+    const request = store.getAll()
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result as QueuedUpload[])
+      request.onerror = () => reject(request.error)
+    })
   } catch (error) {
     console.error('Failed to get queue:', error)
     return []
@@ -147,11 +159,12 @@ function openDB(): Promise<IDBDatabase> {
  * Check if background sync is supported
  */
 export function isBackgroundSyncSupported(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    'serviceWorker' in navigator &&
-    'sync' in ServiceWorkerRegistration.prototype
-  )
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return false
+  }
+
+  // @ts-ignore - sync API is experimental
+  return 'sync' in ServiceWorkerRegistration.prototype
 }
 
 /**

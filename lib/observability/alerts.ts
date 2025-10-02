@@ -18,14 +18,20 @@ export interface TTMMetric {
  * Track TTM metric and alert if threshold exceeded
  */
 export function trackTTM(metric: TTMMetric): void {
-  // Record transaction for performance monitoring
-  const transaction = Sentry.startTransaction({
-    name: 'photo-restoration',
-    op: 'ai.restore',
-  })
-
-  transaction.setData('session_id', metric.sessionId)
-  transaction.setData('ttm_seconds', metric.ttmSeconds)
+  // Record span for performance monitoring (Sentry v8+ uses startSpan)
+  Sentry.startSpan(
+    {
+      name: 'photo-restoration',
+      op: 'ai.restore',
+      attributes: {
+        session_id: metric.sessionId,
+        ttm_seconds: metric.ttmSeconds,
+      },
+    },
+    () => {
+      // Span body
+    }
+  )
 
   // Check thresholds
   if (metric.ttmSeconds > metric.p95Threshold) {
@@ -59,8 +65,6 @@ export function trackTTM(metric: TTMMetric): void {
       },
     })
   }
-
-  transaction.finish()
 }
 
 /**
