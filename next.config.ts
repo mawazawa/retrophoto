@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 import withPWA from '@ducanh2912/next-pwa';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
   images: {
@@ -17,7 +18,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA({
+const configWithPWA = withPWA({
   dest: 'public',
   register: true,
   skipWaiting: true,
@@ -59,3 +60,16 @@ export default withPWA({
     },
   ],
 })(nextConfig);
+
+export default withSentryConfig(configWithPWA, {
+  // Sentry Build Options
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  reactComponentAnnotation: {
+    enabled: true,
+  },
+  hideSourceMaps: true,
+  disableLogger: true,
+});

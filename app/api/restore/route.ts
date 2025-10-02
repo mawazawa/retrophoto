@@ -11,6 +11,8 @@ import { generateDeepLink } from '@/lib/share/deep-link';
 import { checkQuota, incrementQuota } from '@/lib/quota/tracker';
 import { trackTTM } from '@/lib/metrics/analytics';
 import { validateImageFile } from '@/lib/utils';
+import { logger } from '@/lib/observability/logger';
+import { trackTTM as trackTTMAlert, trackRestorationFailure, trackValidationError } from '@/lib/observability/alerts';
 import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
@@ -34,6 +36,7 @@ export async function POST(request: NextRequest) {
     // Validate file
     const validation = validateImageFile(file);
     if (!validation.valid) {
+      trackValidationError(validation.error || 'Invalid file', file.size, file.type);
       return NextResponse.json(
         { error: validation.error, error_code: 'INVALID_FILE_TYPE' },
         { status: 400 }
@@ -55,6 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload original
+    logger.uploadStart(fingerprint, file.size, file.type);
     const originalUrl = await uploadOriginalImage(file, fingerprint);
 
     // Create session
@@ -72,6 +76,7 @@ export async function POST(request: NextRequest) {
     if (sessionError) throw sessionError;
 
     // Process with AI
+    logger.restorationStart(session.id);
     const restoredUrl = await restoreImage(originalUrl);
 
     // Download and validate resolution (T050a)
@@ -128,6 +133,16 @@ export async function POST(request: NextRequest) {
     const ttmSeconds = (Date.now() - startTime) / 1000;
     await trackTTM(session.id, ttmSeconds);
 
+    // Alert if TTM threshold exceeded
+    trackTTMAlert({
+      sessionId: session.id,
+      ttmSeconds,
+      p50Threshold: 6,
+      p95Threshold: 12,
+    });
+
+    logger.restorationComplete(session.id, Date.now() - startTime, ttmSeconds);
+
     return NextResponse.json({
       session_id: session.id,
       restored_url: finalRestoredUrl,
@@ -137,7 +152,15 @@ export async function POST(request: NextRequest) {
       ttm_seconds: ttmSeconds,
     });
   } catch (error) {
-    console.error('Restore error:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Restoration failed', {
+      error: err.message,
+      operation: 'restoration',
+    });
+
+    // Track restoration failure in Sentry
+    trackRestorationFailure('unknown', err, 0);
+
     return NextResponse.json(
       {
         error: 'Restoration failed. Please try again or contact support.',
