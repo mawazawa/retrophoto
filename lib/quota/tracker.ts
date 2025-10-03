@@ -1,4 +1,3 @@
-// @ts-nocheck - Type errors expected until database is deployed
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -12,28 +11,22 @@ import { createClient } from '@/lib/supabase/server';
 export async function checkQuota(fingerprint: string): Promise<boolean> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from('user_quota')
-    .select('restore_count')
-    .eq('fingerprint', fingerprint)
-    .single();
+  // Use the check_quota database function for server-side enforcement
+  const { data, error } = await supabase.rpc('check_quota', {
+    user_fingerprint: fingerprint,
+  });
 
-  if (error) {
-    // If no quota record exists, user has 1 free restore
-    if (error.code === 'PGRST116') {
-      return true;
-    }
-    throw error;
-  }
+  if (error) throw error;
 
-  // User has quota if they haven't used their free restore yet
-  return (data?.restore_count || 0) < 1;
+  // Function returns array with one result
+  const result = data?.[0];
+  return result ? result.remaining > 0 : true;
 }
 
 export async function incrementQuota(fingerprint: string): Promise<void> {
   const supabase = await createClient();
 
-  // Try to get existing quota record
+  // Get existing quota or create new one, then increment
   const { data: existing } = await supabase
     .from('user_quota')
     .select('fingerprint, restore_count')
