@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ['sharp', 'gifenc'],
   // Performance optimizations (T082-T086)
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog'],

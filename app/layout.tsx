@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/react'
 import './globals.css'
@@ -10,22 +10,23 @@ const inter = Inter({
   preload: true,
 })
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: 'cover',
+  themeColor: '#09090b',
+}
+
 export const metadata: Metadata = {
   title: 'RetroPhoto - Restore Old Photos in Seconds',
   description: 'Preserve memories by turning old photos into realistic HD in seconds.',
-  themeColor: '#09090b',
   manifest: '/site.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'RetroPhoto',
-  },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-    viewportFit: 'cover',
   },
   icons: {
     icon: [

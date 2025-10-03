@@ -1,4 +1,4 @@
-import { GifWriter } from 'gifenc';
+import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 import sharp from 'sharp';
 
 export async function generateRevealGIF(
@@ -11,7 +11,7 @@ export async function generateRevealGIF(
     fetch(restoredUrl).then((r) => r.arrayBuffer()),
   ]);
 
-  // Resize to max 800px width and convert to raw RGB data
+  // Resize to max 800px width and convert to RGBA data
   const original = await sharp(Buffer.from(originalBuffer))
     .resize(800, null, { withoutEnlargement: true })
     .ensureAlpha()
@@ -25,45 +25,46 @@ export async function generateRevealGIF(
     .toBuffer({ resolveWithObject: true });
 
   // Create GIF with wipe reveal animation (2-3 seconds, 10 frames)
-  const { width, height, channels } = original.info;
-  const buffer = new Uint8Array(width * height * 256);
-  const gif = new GifWriter(buffer, width, height);
+  const { width, height } = original.info;
+  const gif = GIFEncoder();
 
+  // Generate palette from both images
+  const sampleData = new Uint8ClampedArray(width * height * 4);
+  for (let i = 0; i < width * height * 4; i++) {
+    sampleData[i] = i % 2 === 0 ? original.data[i] : restored.data[i];
+  }
+  const palette = quantize(sampleData, 256);
+  
   // Generate 11 frames (0-10) for smooth wipe animation
   for (let i = 0; i <= 10; i++) {
     const wipePosition = Math.floor((width * i) / 10);
-
-    // Create frame data with indexed colors (RGBA -> palette index)
-    const frameData = new Uint8Array(width * height);
-
+    
+    // Create frame buffer mixing original and restored based on wipe position
+    const frameData = new Uint8ClampedArray(width * height * 4);
+    
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const idx = (y * width + x) * channels;
-        const pixelIdx = y * width + x;
-
+        const idx = (y * width + x) * 4;
+        
         // Use restored image on left side of wipe, original on right
-        let r, g, b;
-        if (x < wipePosition) {
-          r = restored.data[idx];
-          g = restored.data[idx + 1];
-          b = restored.data[idx + 2];
-        } else {
-          r = original.data[idx];
-          g = original.data[idx + 1];
-          b = original.data[idx + 2];
-        }
-
-        // Simple color quantization to palette index (reduce to 256 colors)
-        const paletteIndex = Math.floor((r / 32) * 36 + (g / 32) * 6 + b / 32);
-        frameData[pixelIdx] = paletteIndex;
+        const sourceData = x < wipePosition ? restored.data : original.data;
+        frameData[idx] = sourceData[idx];       // R
+        frameData[idx + 1] = sourceData[idx + 1]; // G
+        frameData[idx + 2] = sourceData[idx + 2]; // B
+        frameData[idx + 3] = sourceData[idx + 3]; // A
       }
     }
-
-    // Add frame with 200ms delay
-    gif.addFrame(0, 0, width, height, frameData, { delay: 20 }); // 20 = 200ms in centiseconds
+    
+    // Apply palette and add frame with 200ms delay
+    const indexedFrame = applyPalette(frameData, palette);
+    gif.writeFrame(indexedFrame, width, height, {
+      palette,
+      delay: 200, // 200ms delay
+      first: i === 0
+    });
   }
 
   // Finalize GIF
-  gif.end();
-  return Buffer.from(buffer.slice(0, gif.bytesView));
+  gif.finish();
+  return Buffer.from(gif.bytes());
 }
