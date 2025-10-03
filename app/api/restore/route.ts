@@ -155,6 +155,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
+    
+    // Log detailed error for debugging
+    console.error('RESTORE API ERROR:', {
+      message: err.message,
+      stack: err.stack,
+      name: err.name,
+    });
+    
     logger.error('Restoration failed', {
       error: err.message,
       operation: 'restoration',
