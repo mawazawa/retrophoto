@@ -26,10 +26,16 @@ This made the token invalid, causing all calls to the Replicate API to fail imme
 - **Scope**: All production deployments since token was set
 
 ### Root Cause
-The environment variable was likely set by:
-1. Copy-pasting the token with an accidental newline
-2. Using `vercel env add` with improper input handling
-3. Manual editing in Vercel dashboard with whitespace
+The `echo` command in the fix attempt **added a newline by default**:
+```bash
+# WRONG (adds \n):
+echo "token" | vercel env add REPLICATE_API_TOKEN production
+
+# CORRECT (no newline):
+echo -n "token" | vercel env add REPLICATE_API_TOKEN production
+```
+
+The `-n` flag is required to suppress the trailing newline that `echo` adds by default.
 
 ### Discovery Process
 1. User reported production failure (retrophotoai.com showing 500 errors)
@@ -45,11 +51,12 @@ The environment variable was likely set by:
 vercel env rm REPLICATE_API_TOKEN production --yes
 ```
 
-**Step 2: Add Clean Token (all environments)**
+**Step 2: Add Clean Token (all environments) - CRITICAL: Use `echo -n` to prevent newline**
 ```bash
-echo "r8_YOUR_REPLICATE_TOKEN_HERE" | vercel env add REPLICATE_API_TOKEN production
-echo "r8_YOUR_REPLICATE_TOKEN_HERE" | vercel env add REPLICATE_API_TOKEN preview
-echo "r8_YOUR_REPLICATE_TOKEN_HERE" | vercel env add REPLICATE_API_TOKEN development
+# The -n flag is REQUIRED to prevent echo from adding a trailing newline!
+echo -n "r8_YOUR_REPLICATE_TOKEN_HERE" | vercel env add REPLICATE_API_TOKEN production
+echo -n "r8_YOUR_REPLICATE_TOKEN_HERE" | vercel env add REPLICATE_API_TOKEN preview
+echo -n "r8_YOUR_REPLICATE_TOKEN_HERE" | vercel env add REPLICATE_API_TOKEN development
 ```
 
 **Step 3: Redeploy to Production**
@@ -120,8 +127,31 @@ vercel --prod
 
 ---
 
-**Status**: ✅ FIXED - Token cleaned and redeployed to production
-**Date**: 2025-10-03
+### Verification of Fix
+
+**Check for newline in token:**
+```bash
+vercel env pull .env.check --environment=production
+cat .env.check | grep "REPLICATE" | od -c | tail -2
+```
+
+**Expected output (correct):**
+```
+...   e   "  \n
+```
+The `\n` should be AFTER the closing quote, not before it.
+
+**Wrong output (has bug):**
+```
+...   e  \n   "  \n
+```
+A `\n` before the quote means the newline is INSIDE the token value.
+
+---
+
+**Status**: ✅ FIXED - Token properly set with `echo -n` and redeployed
+**Date**: 2025-10-03  
 **Severity**: CRITICAL
-**Resolution Time**: ~10 minutes from detection to fix
+**Resolution Time**: ~45 minutes (including initial misdiagnosis)
+**Root Cause**: Incorrect use of `echo` without `-n` flag in fix attempt
 
