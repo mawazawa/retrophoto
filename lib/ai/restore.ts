@@ -8,12 +8,13 @@ const replicate = new Replicate({
 export async function restoreImage(imageUrl: string): Promise<string> {
   const run = async () => {
     const output = await replicate.run(
-      'sczhou/codeformer:7de2ea26c616d5bf2245ad0d5e24f0ff9a6204578a5c876db53142edd9d2cd56',
+      'jingyunliang/swinir:660d922d33153019e33c487636deb165e8d88df7c40d7f9e3e9f7bf31d92a5f7',
       {
         input: {
           image: imageUrl,
-          codeformer_fidelity: 0.7,
-          upscale: 2,
+          task_type: 'Real-World Image Super-Resolution-Large',
+          noise: 15,
+          jpeg: 40,
         },
       }
     );
