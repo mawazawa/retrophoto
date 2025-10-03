@@ -9,7 +9,8 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { generateFingerprint, checkQuota, incrementQuota } from '@/lib/quota/tracker';
+import { checkQuota, incrementQuota } from '@/lib/quota/tracker';
+import { generateFingerprint } from '@/lib/quota/client-tracker';
 
 // Skip these tests until database is deployed
 describe.skip('Quota Tracker Integration', () => {

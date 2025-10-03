@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { generateFingerprint } from './tracker'
+import { generateFingerprint } from './client-tracker'
 
 // Mock FingerprintJS
 vi.mock('@fingerprintjs/fingerprintjs', () => ({
@@ -43,5 +43,5 @@ describe('generateFingerprint', () => {
   })
 })
 
-// Note: Integration tests for checkQuota and incrementQuota require Supabase connection
-// and are better suited for E2E tests (see tests/integration/quota.test.ts)
+// Note: Integration tests for checkQuota and incrementQuota in tracker.ts require Supabase connection
+// and are better suited for E2E tests (see tests/integration/quota-tracker.test.ts)

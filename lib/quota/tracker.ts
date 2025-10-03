@@ -1,12 +1,13 @@
 // @ts-nocheck - Type errors expected until database is deployed
-import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import { createClient } from '@/lib/supabase/server';
 
-export async function generateFingerprint(): Promise<string> {
-  const fp = await FingerprintJS.load();
-  const result = await fp.get();
-  return result.visitorId;
-}
+/**
+ * Server-side quota tracking utilities
+ *
+ * Note: Do NOT import generateFingerprint from this file.
+ * Use '@/lib/quota/client-tracker' for client-side fingerprint generation.
+ * Fingerprints should always be generated on the client and passed to the server.
+ */
 
 export async function checkQuota(fingerprint: string): Promise<boolean> {
   const supabase = await createClient();
