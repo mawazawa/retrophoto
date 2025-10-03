@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Sparkles } from 'lucide-react'
@@ -11,6 +12,29 @@ export function UpgradePrompt({
   open: boolean
   onClose: () => void
 }) {
+  const [isLoading, setIsLoading] = useState(false)
+
+  async function handleUpgrade() {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        console.error('No checkout URL returned')
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -37,14 +61,20 @@ export function UpgradePrompt({
           </div>
 
           <div className="flex gap-2">
-            <Button className="flex-1 min-touch-44" size="lg">
-              Upgrade Now
+            <Button
+              className="flex-1 min-touch-44"
+              size="lg"
+              onClick={handleUpgrade}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Loading...' : 'Upgrade Now'}
             </Button>
             <Button
               variant="outline"
               onClick={onClose}
               className="min-touch-44"
               size="lg"
+              disabled={isLoading}
             >
               Maybe Later
             </Button>

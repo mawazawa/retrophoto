@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { logger } from './logger'
 
 describe('Logger', () => {
-  const originalEnv = process.env.NODE_ENV
   let consoleSpy: {
     debug: ReturnType<typeof vi.spyOn>
     info: ReturnType<typeof vi.spyOn>

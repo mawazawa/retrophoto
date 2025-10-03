@@ -12,7 +12,8 @@ export interface QueuedUpload {
   timestamp: number
 }
 
-const QUEUE_KEY = 'retrophoto_upload_queue'
+// Queue key constant for IndexedDB store name
+const _QUEUE_KEY = 'retrophoto_upload_queue'
 
 /**
  * Add upload to background sync queue

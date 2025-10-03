@@ -1,13 +1,7 @@
-
-@import "tw-animate-css";
-
+@import "tailwindcss";
 @plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 @layer base {
   :root {
@@ -79,7 +73,8 @@
 /* Touch target utility */
 @layer utilities {
   .min-touch-44 {
-    @apply min-h-touch-44 min-w-touch-44;
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 

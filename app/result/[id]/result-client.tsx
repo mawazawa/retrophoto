@@ -7,7 +7,7 @@ import { ShareSheet } from '@/components/share-sheet'
 import { WatermarkBadge } from '@/components/watermark-badge'
 import { UpgradePrompt } from '@/components/upgrade-prompt'
 import { Button } from '@/components/ui/button'
-import { setupNSMTracking } from '@/lib/metrics/analytics'
+import { setupNSMTracking } from '@/lib/metrics/client-analytics'
 import confetti from 'canvas-confetti'
 
 export function ResultClient({

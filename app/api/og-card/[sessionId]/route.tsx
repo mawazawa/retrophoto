@@ -5,21 +5,22 @@ import { generateOGCard } from '@/lib/share/og-card';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
+    const { sessionId } = await params;
     const supabase = await createClient();
 
     const { data: session } = await supabase
       .from('upload_sessions')
       .select('original_url')
-      .eq('id', params.sessionId)
+      .eq('id', sessionId)
       .single();
 
     const { data: result } = await supabase
       .from('restoration_results')
       .select('restored_url')
-      .eq('session_id', params.sessionId)
+      .eq('session_id', sessionId)
       .single();
 
     if (!session || !result) {

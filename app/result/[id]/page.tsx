@@ -6,20 +6,21 @@ import { ResultClient } from './result-client'
 export default async function ResultPage({
   params
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   const supabase = await createClient()
 
   const { data: session } = await supabase
     .from('upload_sessions')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   const { data: result } = await supabase
     .from('restoration_results')
     .select('*')
-    .eq('session_id', params.id)
+    .eq('session_id', id)
     .single()
 
   if (!session || !result) {
@@ -32,7 +33,7 @@ export default async function ResultPage({
       restoredUrl={result.restored_url}
       deepLink={result.deep_link}
       ogCardUrl={result.og_card_url}
-      sessionId={params.id}
+      sessionId={id}
     />
   )
 }

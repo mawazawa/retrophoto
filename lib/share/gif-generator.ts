@@ -42,17 +42,15 @@ export async function generateRevealGIF(
         const pixelIdx = y * width + x;
 
         // Use restored image on left side of wipe, original on right
-        let r, g, b, a;
+        let r, g, b;
         if (x < wipePosition) {
           r = restored.data[idx];
           g = restored.data[idx + 1];
           b = restored.data[idx + 2];
-          a = channels === 4 ? restored.data[idx + 3] : 255;
         } else {
           r = original.data[idx];
           g = original.data[idx + 1];
           b = original.data[idx + 2];
-          a = channels === 4 ? original.data[idx + 3] : 255;
         }
 
         // Simple color quantization to palette index (reduce to 256 colors)

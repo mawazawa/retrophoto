@@ -83,7 +83,7 @@ export function ZoomViewer({
               >
                 <img
                   src={imageUrl}
-                  alt="Restored photo (zoomed)"
+                  alt="Restored content zoomed in"
                   className="max-w-full max-h-full object-contain"
                 />
               </TransformComponent>

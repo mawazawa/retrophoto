@@ -1,13 +1,13 @@
 "use client"
 
 import { useState } from 'react'
-import { Share2, Copy, Check } from 'lucide-react'
+import { Share2, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export function ShareSheet({
   deepLink,
-  ogCardUrl,
-  sessionId
+  ogCardUrl: _ogCardUrl,
+  sessionId: _sessionId
 }: {
   deepLink: string
   ogCardUrl: string
