@@ -23,6 +23,7 @@ export async function uploadOriginalImage(
 
   if (error) throw error;
 
+  // Get public URL (bucket is public for simplicity)
   const {
     data: { publicUrl },
   } = supabase.storage.from('uploads').getPublicUrl(data.path);
