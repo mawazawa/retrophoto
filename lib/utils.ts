@@ -5,18 +5,59 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function validateImageFile(file: File): { valid: boolean; error?: string } {
-  const MAX_SIZE = 20 * 1024 * 1024 // 20MB
-  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/webp']
+// Constants for validation
+const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/webp']
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
+/**
+ * Validates if file type is allowed
+ * @param file - File to validate
+ * @returns true if file type is allowed, false otherwise
+ */
+export function validateFileType(file: File): boolean {
+  return ALLOWED_FILE_TYPES.includes(file.type)
+}
+
+/**
+ * Validates if file size is within limits
+ * @param file - File to validate
+ * @returns true if file size is valid, false otherwise
+ */
+export function validateFileSize(file: File): boolean {
+  return file.size <= MAX_FILE_SIZE
+}
+
+/**
+ * Gets user-friendly validation error message for a file
+ * @param file - File to get error message for
+ * @returns Error message string
+ */
+export function getFileValidationError(file: File): string {
+  if (!validateFileType(file)) {
+    return 'Please upload a valid image file (JPEG, PNG, HEIC, WEBP).'
+  }
+
+  if (!validateFileSize(file)) {
+    return `Photo too large. Please upload images under 20MB.`
+  }
+
+  return ''
+}
+
+/**
+ * Combined validation function for backward compatibility
+ * @param file - File to validate
+ * @returns Validation result with optional error message
+ */
+export function validateImageFile(file: File): { valid: boolean; error?: string } {
+  if (!validateFileType(file)) {
     return {
       valid: false,
       error: 'Please upload a valid image file (JPG, PNG, HEIC, WEBP).'
     }
   }
 
-  if (file.size > MAX_SIZE) {
+  if (!validateFileSize(file)) {
     return {
       valid: false,
       error: 'Photo too large. Please upload images under 20MB.'

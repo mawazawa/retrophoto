@@ -4,9 +4,8 @@ import { describe, it, expect } from 'vitest';
 // This test MUST fail initially (TDD approach)
 // Expected to pass after T048 (validation utilities) implementation
 
-// Import the validation functions (will be implemented in T048)
-// @ts-expect-error - Module will be created in T048
-import { validateFileType, validateFileSize } from '@/lib/utils';
+// Import the validation functions
+import { validateFileType, validateFileSize, getFileValidationError } from '@/lib/utils';
 
 describe('File Upload Validation', () => {
   describe('[T022] File Type Validation', () => {
@@ -106,7 +105,6 @@ describe('File Upload Validation', () => {
         type: 'image/jpeg',
       });
 
-      // @ts-expect-error - Function will be implemented in T049
       const error = getFileValidationError(file);
       expect(error).toContain('20MB');
       expect(error).toContain('large');
@@ -115,7 +113,6 @@ describe('File Upload Validation', () => {
     it('should provide user-friendly error for invalid file types', () => {
       const file = new File(['test'], 'test.txt', { type: 'text/plain' });
 
-      // @ts-expect-error - Function will be implemented in T049
       const error = getFileValidationError(file);
       expect(error).toContain('JPEG');
       expect(error).toContain('PNG');
