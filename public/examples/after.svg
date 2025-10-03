@@ -1,0 +1,35 @@
+<svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="restored" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f4e4d7;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#e8d4c0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d4c4b0;stop-opacity:1" />
+    </linearGradient>
+
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Crisp, clean background -->
+  <rect width="1920" height="1080" fill="url(#restored)"/>
+
+  <!-- Subtle vignette for depth -->
+  <ellipse cx="960" cy="540" rx="1100" ry="650" fill="url(#glow)"/>
+
+  <!-- "AFTER" watermark -->
+  <text x="960" y="540" font-family="Arial, sans-serif" font-size="120" font-weight="bold" fill="#8b7355" text-anchor="middle" opacity="0.15">
+    AFTER - HD
+  </text>
+
+  <!-- Clean, vibrant details (sample decoration) -->
+  <circle cx="960" cy="540" r="300" fill="none" stroke="#8b7355" stroke-width="2" opacity="0.1"/>
+  <circle cx="960" cy="540" r="250" fill="none" stroke="#8b7355" stroke-width="1" opacity="0.08"/>
+
+  <!-- Quality indicator corners -->
+  <path d="M 50,50 L 150,50 L 150,60 L 60,60 L 60,150 L 50,150 Z" fill="#6b5d4f" opacity="0.2"/>
+  <path d="M 1870,50 L 1770,50 L 1770,60 L 1860,60 L 1860,150 L 1870,150 Z" fill="#6b5d4f" opacity="0.2"/>
+  <path d="M 50,1030 L 150,1030 L 150,1020 L 60,1020 L 60,930 L 50,930 Z" fill="#6b5d4f" opacity="0.2"/>
+  <path d="M 1870,1030 L 1770,1030 L 1770,1020 L 1860,1020 L 1860,930 L 1870,930 Z" fill="#6b5d4f" opacity="0.2"/>
+</svg>

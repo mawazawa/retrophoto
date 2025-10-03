@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { SignInButton } from '@/components/auth/sign-in-button'
 import { UserMenu } from '@/components/auth/user-menu'
 import { Footer } from '@/components/footer'
+import { BeforeAfterHero } from '@/components/before-after-hero'
 import { Sparkles, Zap, Shield, Clock, Check, ArrowRight } from 'lucide-react'
 
 function PremiumPricingCard() {
@@ -191,6 +192,9 @@ export default function LandingPage() {
             </p>
           </div>
         </section>
+
+        {/* Before/After Demo */}
+        <BeforeAfterHero />
 
         {/* Features Section */}
         <section id="features" className="py-20 bg-muted/30">
