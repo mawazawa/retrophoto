@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 export function Footer() {
   return (
@@ -7,7 +8,16 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">RetroPhoto</h3>
+            <div className="flex items-center gap-3">
+              <Image
+                src="/logo.png"
+                alt="RetroPhoto Logo"
+                width={40}
+                height={40}
+                className="rounded-lg"
+              />
+              <h3 className="text-lg font-semibold">RetroPhoto</h3>
+            </div>
             <p className="text-sm text-muted-foreground">
               Restore old photos with AI. Preserve memories in stunning HD quality.
             </p>
