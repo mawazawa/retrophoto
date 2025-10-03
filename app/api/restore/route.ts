@@ -18,11 +18,12 @@ import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
+  let fingerprint: string | undefined;
 
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const fingerprint = formData.get('fingerprint') as string;
+    fingerprint = formData.get('fingerprint') as string;
 
     if (!file || !fingerprint) {
       return NextResponse.json(
@@ -170,60 +171,65 @@ export async function POST(request: NextRequest) {
 
     // Handle retry logic if session was created
     try {
-      const supabase = await createClient();
-      
-      // Get current session if it exists
-      const { data: existingSession } = await supabase
-        .from('upload_sessions')
-        .select('id, retry_count')
-        .eq('user_fingerprint', fingerprint)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (existingSession) {
-        const currentRetryCount = existingSession.retry_count || 0;
-        
-        // Check if we can retry (max 1 retry per constitutional SLO)
-        if (currentRetryCount < 1) {
-          // First failure - set to pending for retry
-          const newRetryCount = Math.min(currentRetryCount + 1, 1);
-          await supabase
-            .from('upload_sessions')
-            .update({
-              status: 'pending',
-              retry_count: newRetryCount,
-            })
-            .eq('id', existingSession.id);
-
-          logger.error('Restoration failed, will retry', {
-            sessionId: existingSession.id,
-            retryCount: newRetryCount,
-          });
-
-          // Track restoration failure with retry info
-          trackRestorationFailure(existingSession.id, err, newRetryCount);
-        } else {
-          // Already retried - mark as failed
-          await supabase
-            .from('upload_sessions')
-            .update({
-              status: 'failed',
-              retry_count: Math.min(currentRetryCount, 1), // Cap at 1
-            })
-            .eq('id', existingSession.id);
-
-          logger.error('Restoration failed after retry', {
-            sessionId: existingSession.id,
-            retryCount: currentRetryCount,
-          });
-
-          // Track final restoration failure
-          trackRestorationFailure(existingSession.id, err, currentRetryCount);
-        }
-      } else {
-        // No session found (early failure) - just track
+      if (!fingerprint) {
+        // fingerprint not available (early failure), just track error
         trackRestorationFailure('unknown', err, 0);
+      } else {
+        const supabase = await createClient();
+        
+        // Get current session if it exists
+        const { data: existingSession } = await supabase
+          .from('upload_sessions')
+          .select('id, retry_count')
+          .eq('user_fingerprint', fingerprint)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (existingSession) {
+          const currentRetryCount = existingSession.retry_count || 0;
+          
+          // Check if we can retry (max 1 retry per constitutional SLO)
+          if (currentRetryCount < 1) {
+            // First failure - set to pending for retry
+            const newRetryCount = Math.min(currentRetryCount + 1, 1);
+            await supabase
+              .from('upload_sessions')
+              .update({
+                status: 'pending',
+                retry_count: newRetryCount,
+              })
+              .eq('id', existingSession.id);
+
+            logger.error('Restoration failed, will retry', {
+              sessionId: existingSession.id,
+              retryCount: newRetryCount,
+            });
+
+            // Track restoration failure with retry info
+            trackRestorationFailure(existingSession.id, err, newRetryCount);
+          } else {
+            // Already retried - mark as failed
+            await supabase
+              .from('upload_sessions')
+              .update({
+                status: 'failed',
+                retry_count: Math.min(currentRetryCount, 1), // Cap at 1
+              })
+              .eq('id', existingSession.id);
+
+            logger.error('Restoration failed after retry', {
+              sessionId: existingSession.id,
+              retryCount: currentRetryCount,
+            });
+
+            // Track final restoration failure
+            trackRestorationFailure(existingSession.id, err, currentRetryCount);
+          }
+        } else {
+          // No session found (early failure) - just track
+          trackRestorationFailure('unknown', err, 0);
+        }
       }
     } catch (updateError) {
       // If retry logic fails, just log it
