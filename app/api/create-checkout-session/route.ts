@@ -2,12 +2,22 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/auth/server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+const stripePriceId = process.env.STRIPE_PREMIUM_PRICE_ID
+
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
   apiVersion: '2025-09-30.clover',
-})
+}) : null
 
 export async function POST(request: Request) {
   try {
+    if (!stripe || !stripePriceId) {
+      return NextResponse.json(
+        { error: 'Stripe is not configured' },
+        { status: 503 }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -19,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     const { origin } = new URL(request.url)
-    const priceId = process.env.STRIPE_PREMIUM_PRICE_ID!
+    const priceId = stripePriceId
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
