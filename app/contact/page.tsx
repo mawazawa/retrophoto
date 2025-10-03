@@ -25,34 +25,34 @@ export default function ContactPage() {
         <div className="grid md:grid-cols-3 gap-8 mb-12">
           <div className="p-6 border rounded-lg bg-card">
             <Mail className="h-8 w-8 text-primary mb-4" />
-            <h3 className="font-semibold text-lg mb-2">General Support</h3>
-            <a href="mailto:support@retrophoto.app" className="text-primary hover:underline">
-              support@retrophoto.app
+            <h3 className="font-semibold text-lg mb-2">Email Support</h3>
+            <a href="mailto:mathieuwauters@gmail.com" className="text-primary hover:underline">
+              mathieuwauters@gmail.com
             </a>
             <p className="text-sm text-muted-foreground mt-2">
-              For general questions and technical support
+              For all questions and support inquiries
             </p>
           </div>
 
           <div className="p-6 border rounded-lg bg-card">
             <MessageSquare className="h-8 w-8 text-primary mb-4" />
-            <h3 className="font-semibold text-lg mb-2">Billing Help</h3>
-            <a href="mailto:billing@retrophoto.app" className="text-primary hover:underline">
-              billing@retrophoto.app
+            <h3 className="font-semibold text-lg mb-2">Phone Support</h3>
+            <a href="tel:+13475743963" className="text-primary hover:underline">
+              +1 (347) 574-3963
             </a>
             <p className="text-sm text-muted-foreground mt-2">
-              For subscription and payment questions
+              Call us during business hours
             </p>
           </div>
 
           <div className="p-6 border rounded-lg bg-card">
             <Clock className="h-8 w-8 text-primary mb-4" />
-            <h3 className="font-semibold text-lg mb-2">Privacy Questions</h3>
-            <a href="mailto:privacy@retrophoto.app" className="text-primary hover:underline">
-              privacy@retrophoto.app
-            </a>
+            <h3 className="font-semibold text-lg mb-2">Business Hours</h3>
+            <p className="text-muted-foreground">
+              Mon-Fri: 9 AM - 5 PM PST
+            </p>
             <p className="text-sm text-muted-foreground mt-2">
-              For data privacy and security inquiries
+              We typically respond within 1-2 business days
             </p>
           </div>
         </div>
@@ -119,22 +119,41 @@ export default function ContactPage() {
           </section>
 
           <section className="border-t pt-8">
-            <h2 className="text-2xl font-semibold mb-4">Business Inquiries</h2>
-            <p className="text-muted-foreground mb-4">
-              For partnership opportunities, media requests, or business development:
-            </p>
-            <a href="mailto:business@retrophoto.app" className="text-primary hover:underline text-lg">
-              business@retrophoto.app
-            </a>
+            <h2 className="text-2xl font-semibold mb-4">Company Information</h2>
+            <div className="bg-muted/50 p-6 rounded-lg">
+              <p className="text-muted-foreground mb-2">
+                <strong>Empathy Labs LLC</strong>
+              </p>
+              <p className="text-muted-foreground mb-2">
+                3525 8th Ave<br />
+                Los Angeles, CA 90018
+              </p>
+              <p className="text-muted-foreground mb-2">
+                <strong>Email:</strong>{' '}
+                <a href="mailto:mathieuwauters@gmail.com" className="text-primary hover:underline">
+                  mathieuwauters@gmail.com
+                </a>
+              </p>
+              <p className="text-muted-foreground mb-2">
+                <strong>Phone:</strong>{' '}
+                <a href="tel:+13475743963" className="text-primary hover:underline">
+                  +1 (347) 574-3963
+                </a>
+              </p>
+              <p className="text-muted-foreground">
+                <strong>EIN:</strong> 92-2643132
+              </p>
+            </div>
           </section>
 
           <section className="border-t pt-8">
-            <h2 className="text-2xl font-semibold mb-4">Office Hours</h2>
-            <p className="text-muted-foreground">
-              Our support team is available Monday through Friday, 9:00 AM - 5:00 PM EST.
-              <br />
-              We typically respond to all inquiries within 1-2 business days.
+            <h2 className="text-2xl font-semibold mb-4">Business Inquiries</h2>
+            <p className="text-muted-foreground mb-4">
+              For partnership opportunities, media requests, or business development, please contact us at:
             </p>
+            <a href="mailto:mathieuwauters@gmail.com" className="text-primary hover:underline text-lg">
+              mathieuwauters@gmail.com
+            </a>
           </section>
 
           <section className="bg-muted/50 p-6 rounded-lg">

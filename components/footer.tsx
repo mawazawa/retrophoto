@@ -72,13 +72,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="mailto:support@retrophoto.app" className="hover:text-foreground transition-colors">
+                <a href="mailto:mathieuwauters@gmail.com" className="hover:text-foreground transition-colors">
                   Email Support
                 </a>
               </li>
               <li>
-                <a href="mailto:billing@retrophoto.app" className="hover:text-foreground transition-colors">
-                  Billing Help
+                <a href="tel:+13475743963" className="hover:text-foreground transition-colors">
+                  Call: +1 (347) 574-3963
                 </a>
               </li>
             </ul>
@@ -86,7 +86,8 @@ export function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} RetroPhoto. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} RetroPhoto by Empathy Labs LLC. All rights reserved.</p>
+          <p className="mt-2">3525 8th Ave, Los Angeles, CA 90018 | EIN: 92-2643132</p>
         </div>
       </div>
     </footer>

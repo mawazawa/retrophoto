@@ -25,7 +25,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-2xl font-semibold mb-4">1. Introduction</h2>
             <p className="text-muted-foreground leading-relaxed">
-              RetroPhoto ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our photo restoration service.
+              RetroPhoto, operated by Empathy Labs LLC ("we," "our," or "us"), is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our photo restoration service.
             </p>
           </section>
 
@@ -142,10 +142,13 @@ export default function PrivacyPage() {
               If you have questions about this Privacy Policy, please contact us:
             </p>
             <div className="mt-4 p-4 bg-muted rounded-lg">
-              <p className="text-muted-foreground">Email: privacy@retrophoto.app</p>
+              <p className="text-muted-foreground"><strong>Empathy Labs LLC</strong></p>
+              <p className="text-muted-foreground mt-2">Email: mathieuwauters@gmail.com</p>
+              <p className="text-muted-foreground mt-2">Phone: +1 (347) 574-3963</p>
               <p className="text-muted-foreground mt-2">
-                Address: [Your Business Address]
+                Address: 3525 8th Ave, Los Angeles, CA 90018
               </p>
+              <p className="text-muted-foreground mt-2">EIN: 92-2643132</p>
             </div>
           </section>
 

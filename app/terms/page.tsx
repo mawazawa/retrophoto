@@ -211,7 +211,7 @@ export default function TermsPage() {
 
             <h3 className="text-xl font-semibold mb-3 mt-6">15.1 Informal Resolution</h3>
             <p className="text-muted-foreground leading-relaxed">
-              Before filing a claim, you agree to try to resolve the dispute informally by contacting us at support@retrophoto.app
+              Before filing a claim, you agree to try to resolve the dispute informally by contacting us at mathieuwauters@gmail.com
             </p>
 
             <h3 className="text-xl font-semibold mb-3 mt-6">15.2 Arbitration</h3>
@@ -223,11 +223,13 @@ export default function TermsPage() {
           <section>
             <h2 className="text-2xl font-semibold mb-4">16. Contact Information</h2>
             <div className="p-4 bg-muted rounded-lg">
-              <p className="text-muted-foreground">Email: support@retrophoto.app</p>
-              <p className="text-muted-foreground mt-2">Legal: legal@retrophoto.app</p>
+              <p className="text-muted-foreground"><strong>Empathy Labs LLC</strong></p>
+              <p className="text-muted-foreground mt-2">Email: mathieuwauters@gmail.com</p>
+              <p className="text-muted-foreground mt-2">Phone: +1 (347) 574-3963</p>
               <p className="text-muted-foreground mt-2">
-                Address: [Your Business Address]
+                Address: 3525 8th Ave, Los Angeles, CA 90018
               </p>
+              <p className="text-muted-foreground mt-2">EIN: 92-2643132</p>
             </div>
           </section>
         </div>

@@ -38,7 +38,7 @@ export default function RefundPolicyPage() {
             </p>
             <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
               <li>Your account settings page</li>
-              <li>Emailing support@retrophoto.app</li>
+              <li>Emailing mathieuwauters@gmail.com</li>
               <li>Through the Stripe customer portal link sent in your confirmation email</li>
             </ul>
 
@@ -93,7 +93,7 @@ export default function RefundPolicyPage() {
               To request a refund:
             </p>
             <ol className="list-decimal pl-6 space-y-2 text-muted-foreground">
-              <li>Email support@retrophoto.app with your request</li>
+              <li>Email mathieuwauters@gmail.com with your request</li>
               <li>Include your account email and subscription details</li>
               <li>Explain the reason for your refund request</li>
               <li>We'll respond within 1-2 business days</li>
@@ -112,7 +112,7 @@ export default function RefundPolicyPage() {
 
             <h3 className="text-xl font-semibold mb-3 mt-6">5.1 Incorrect Charges</h3>
             <p className="text-muted-foreground leading-relaxed">
-              If you believe you've been charged incorrectly, contact us immediately at billing@retrophoto.app. We'll investigate and resolve the issue within 48 hours.
+              If you believe you've been charged incorrectly, contact us immediately at mathieuwauters@gmail.com. We'll investigate and resolve the issue within 48 hours.
             </p>
 
             <h3 className="text-xl font-semibold mb-3 mt-6">5.2 Chargeback Policy</h3>
@@ -190,9 +190,9 @@ export default function RefundPolicyPage() {
               Questions about refunds or billing? We're here to help:
             </p>
             <div className="p-4 bg-muted rounded-lg">
-              <p className="text-muted-foreground"><strong>General Support:</strong> support@retrophoto.app</p>
-              <p className="text-muted-foreground mt-2"><strong>Billing Questions:</strong> billing@retrophoto.app</p>
-              <p className="text-muted-foreground mt-2"><strong>Refund Requests:</strong> support@retrophoto.app</p>
+              <p className="text-muted-foreground"><strong>General Support:</strong> mathieuwauters@gmail.com</p>
+              <p className="text-muted-foreground mt-2"><strong>Billing Questions:</strong> mathieuwauters@gmail.com</p>
+              <p className="text-muted-foreground mt-2"><strong>Refund Requests:</strong> mathieuwauters@gmail.com</p>
               <p className="text-muted-foreground mt-4">
                 <strong>Response Time:</strong> Within 1-2 business days
               </p>

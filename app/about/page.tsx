@@ -168,27 +168,35 @@ export default function AboutPage() {
           </section>
 
           <section className="border-t pt-8">
+            <h2 className="text-2xl font-semibold mb-4">Company Information</h2>
+            <div className="bg-muted/50 p-6 rounded-lg mb-6">
+              <p className="text-muted-foreground mb-2">
+                <strong>Empathy Labs LLC</strong>
+              </p>
+              <p className="text-muted-foreground mb-2">
+                3525 8th Ave<br />
+                Los Angeles, CA 90018
+              </p>
+              <p className="text-muted-foreground mb-2">
+                <strong>EIN:</strong> 92-2643132
+              </p>
+            </div>
+
             <h2 className="text-2xl font-semibold mb-4">Get in Touch</h2>
             <p className="text-muted-foreground mb-4">
               Have questions or feedback? We'd love to hear from you.
             </p>
             <div className="space-y-2">
               <p>
-                <strong>General Support:</strong>{' '}
-                <a href="mailto:support@retrophoto.app" className="text-primary hover:underline">
-                  support@retrophoto.app
+                <strong>Email:</strong>{' '}
+                <a href="mailto:mathieuwauters@gmail.com" className="text-primary hover:underline">
+                  mathieuwauters@gmail.com
                 </a>
               </p>
               <p>
-                <strong>Privacy Questions:</strong>{' '}
-                <a href="mailto:privacy@retrophoto.app" className="text-primary hover:underline">
-                  privacy@retrophoto.app
-                </a>
-              </p>
-              <p>
-                <strong>Business Inquiries:</strong>{' '}
-                <a href="mailto:business@retrophoto.app" className="text-primary hover:underline">
-                  business@retrophoto.app
+                <strong>Phone:</strong>{' '}
+                <a href="tel:+13475743963" className="text-primary hover:underline">
+                  +1 (347) 574-3963
                 </a>
               </p>
             </div>
