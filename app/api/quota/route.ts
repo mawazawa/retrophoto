@@ -9,7 +9,18 @@ export async function GET(request: NextRequest) {
   if (!fingerprint) {
     return NextResponse.json(
       {
-        error: 'Invalid or missing fingerprint parameter.',
+        error: 'Missing fingerprint parameter.',
+        error_code: 'MISSING_FINGERPRINT',
+      },
+      { status: 400 }
+    );
+  }
+
+  // Validate fingerprint format (minimum 20 characters for browser fingerprints)
+  if (fingerprint.length < 20) {
+    return NextResponse.json(
+      {
+        error: 'Invalid fingerprint format.',
         error_code: 'INVALID_FINGERPRINT',
       },
       { status: 400 }
