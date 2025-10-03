@@ -78,6 +78,12 @@ export function getErrorMessage(code: string): string {
     AI_MODEL_ERROR:
       'Restoration failed. Please try again or contact support.',
     TIMEOUT: 'Processing took longer than expected. Please try again.',
+    DATABASE_ERROR:
+      'Failed to retrieve quota status. Please try again.',
+    MISSING_FINGERPRINT:
+      'Missing fingerprint parameter.',
+    INVALID_FINGERPRINT:
+      'Invalid fingerprint format.',
   };
 
   return messages[code] || 'An error occurred. Please try again.';
