@@ -114,11 +114,11 @@ export default function LandingPage() {
             <Image
               src="/logo.png"
               alt="RetroPhoto Logo"
-              width={32}
-              height={32}
+              width={96}
+              height={96}
               className="rounded-lg"
             />
-            <span className="font-bold text-xl">RetroPhoto</span>
+            <span className="font-bold text-2xl">RetroPhoto</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
