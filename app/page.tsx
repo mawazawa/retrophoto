@@ -40,20 +40,20 @@ function PremiumPricingCard() {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-2xl font-bold">Premium</h3>
+        <h3 className="text-2xl font-bold">Credit Pack</h3>
         <div className="flex items-baseline gap-2">
           <span className="text-4xl font-bold">$9.99</span>
-          <span className="text-muted-foreground">/month</span>
+          <span className="text-muted-foreground">for 10 credits</span>
         </div>
         <p className="text-sm text-muted-foreground">
-          For serious photo restoration needs
+          1 credit = 1 photo restoration
         </p>
       </div>
 
       <ul className="space-y-3 mt-8 mb-8">
         <li className="flex items-start gap-3">
           <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-          <span className="text-sm font-medium">Unlimited restorations</span>
+          <span className="text-sm font-medium">10 photo restorations</span>
         </li>
         <li className="flex items-start gap-3">
           <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
@@ -65,7 +65,7 @@ function PremiumPricingCard() {
         </li>
         <li className="flex items-start gap-3">
           <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-          <span className="text-sm font-medium">Unlimited storage</span>
+          <span className="text-sm font-medium">30-day storage</span>
         </li>
         <li className="flex items-start gap-3">
           <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
@@ -77,16 +77,16 @@ function PremiumPricingCard() {
         </li>
         <li className="flex items-start gap-3">
           <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-          <span className="text-sm font-medium">Cancel anytime</span>
+          <span className="text-sm font-medium">Credits never expire</span>
         </li>
       </ul>
 
       <Button className="w-full" onClick={handleUpgrade} disabled={isLoading}>
-        {isLoading ? 'Loading...' : 'Start 7-Day Free Trial'}
+        {isLoading ? 'Loading...' : 'Buy 10 Credits'}
       </Button>
 
       <p className="text-xs text-center text-muted-foreground mt-4">
-        7-day money-back guarantee • Cancel anytime
+        Secure payment • Instant access
       </p>
     </div>
   )
@@ -332,7 +332,7 @@ export default function LandingPage() {
                 Simple, Transparent Pricing
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Try for free, upgrade when you need more
+                Start with 1 free photo, then buy credits as you need them
               </p>
             </div>
 

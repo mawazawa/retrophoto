@@ -3,7 +3,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/auth/server'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
-const stripePriceId = process.env.STRIPE_PREMIUM_PRICE_ID
+const stripePriceId = process.env.STRIPE_CREDITS_PRICE_ID
 
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
   apiVersion: '2025-09-30.clover',
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     const { origin } = new URL(request.url)
     const priceId = stripePriceId
 
-    // Create Stripe checkout session
+    // Create Stripe checkout session for credit purchase
     const session = await stripe.checkout.sessions.create({
       customer_email: user.email,
       client_reference_id: user.id,
@@ -41,19 +41,13 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      mode: 'subscription',
+      mode: 'payment',
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
       success_url: `${origin}/app?success=true`,
       cancel_url: `${origin}/app?canceled=true`,
       metadata: {
         userId: user.id,
-      },
-      subscription_data: {
-        metadata: {
-          userId: user.id,
-        },
-        trial_period_days: 7, // 7-day free trial
       },
     })
 
