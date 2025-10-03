@@ -47,20 +47,22 @@ export function getFileValidationError(file: File): string {
 /**
  * Combined validation function for backward compatibility
  * @param file - File to validate
- * @returns Validation result with optional error message
+ * @returns Validation result with optional error message and error code
  */
-export function validateImageFile(file: File): { valid: boolean; error?: string } {
+export function validateImageFile(file: File): { valid: boolean; error?: string; errorCode?: string } {
   if (!validateFileType(file)) {
     return {
       valid: false,
-      error: 'Please upload a valid image file (JPG, PNG, HEIC, WEBP).'
+      error: 'Please upload a valid image file (JPG, PNG, HEIC, WEBP).',
+      errorCode: 'INVALID_FILE_TYPE'
     }
   }
 
   if (!validateFileSize(file)) {
     return {
       valid: false,
-      error: 'Photo too large. Please upload images under 20MB.'
+      error: 'Photo too large. Please upload images under 20MB.',
+      errorCode: 'FILE_TOO_LARGE'
     }
   }
 
