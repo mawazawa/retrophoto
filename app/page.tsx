@@ -158,43 +158,68 @@ export default function LandingPage() {
       </header>
 
       <main className="flex-1">
-        {/* Hero Section */}
-        <section className="py-20 md:py-32 px-4">
-          <div className="max-w-6xl mx-auto text-center space-y-8">
-            <div className="inline-block px-4 py-2 bg-primary/10 rounded-full text-sm text-primary font-medium mb-4">
-              ✨ Powered by Advanced AI Technology
+        {/* Hero Section with Before/After Slider */}
+        <section className="relative py-12 md:py-20 px-4 overflow-hidden bg-gradient-to-b from-background via-muted/20 to-background">
+          {/* Background decoration */}
+          <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+
+          <div className="max-w-7xl mx-auto relative z-10">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              {/* Left side - Text content */}
+              <div className="space-y-8 text-center lg:text-left">
+                <div className="inline-block px-4 py-2 bg-primary/10 rounded-full text-sm text-primary font-medium">
+                  ✨ Powered by Advanced AI Technology
+                </div>
+
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-tight">
+                  Restore Old Photos
+                  <br />
+                  <span className="text-primary bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                    in Seconds
+                  </span>
+                </h1>
+
+                <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto lg:mx-0">
+                  Transform damaged, faded, and old photos into stunning HD quality.
+                  Preserve your family memories with cutting-edge AI restoration technology.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center pt-4">
+                  <Link href="/app">
+                    <Button size="lg" className="min-w-[200px] h-14 text-lg">
+                      Start Free Restoration
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                  <Button size="lg" variant="outline" className="min-w-[200px] h-14 text-lg" asChild>
+                    <Link href="#pricing">View Pricing</Link>
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-center lg:justify-start gap-6 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    1 free photo
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    No credit card
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    Instant results
+                  </div>
+                </div>
+              </div>
+
+              {/* Right side - Before/After Slider */}
+              <div className="relative">
+                <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-3xl blur-2xl opacity-50"></div>
+                <BeforeAfterHero />
+              </div>
             </div>
-
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              Restore Old Photos<br />
-              <span className="text-primary">in Seconds</span>
-            </h1>
-
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Transform damaged, faded, and old photos into stunning HD quality.
-              Preserve your family memories with cutting-edge AI restoration technology.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-              <Link href="/app">
-                <Button size="lg" className="min-w-[200px]">
-                  Start Free Restoration
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Button size="lg" variant="outline" className="min-w-[200px]" asChild>
-                <Link href="#pricing">View Pricing</Link>
-              </Button>
-            </div>
-
-            <p className="text-sm text-muted-foreground">
-              No credit card required • 1 free restoration • Instant results
-            </p>
           </div>
         </section>
-
-        {/* Before/After Demo */}
-        <BeforeAfterHero />
 
         {/* Features Section */}
         <section id="features" className="py-20 bg-muted/30">
