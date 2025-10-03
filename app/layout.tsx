@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   title: 'RetroPhoto - Restore Old Photos in Seconds',
   description: 'Preserve memories by turning old photos into realistic HD in seconds.',
   themeColor: '#09090b',
-  manifest: '/manifest.json',
+  manifest: '/site.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -29,11 +29,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/logo-16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/logo-32.png', sizes: '32x32', type: 'image/png' },
     ],
     apple: [
-      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/logo-180.png', sizes: '180x180', type: 'image/png' },
     ],
   },
 }
