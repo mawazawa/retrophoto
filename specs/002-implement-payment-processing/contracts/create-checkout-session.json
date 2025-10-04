@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Create Checkout Session API Contract",
+  "description": "POST /api/create-checkout-session - Creates Stripe Checkout session for credit purchase",
+  "endpoint": "/api/create-checkout-session",
+  "method": "POST",
+  "authentication": "Required (Supabase Auth)",
+  "request": {
+    "headers": {
+      "Content-Type": "application/json",
+      "Cookie": "sb-<project>-auth-token=<jwt>"
+    },
+    "body": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "description": "No body required - user ID extracted from auth session"
+    }
+  },
+  "responses": {
+    "200": {
+      "description": "Checkout session created successfully",
+      "schema": {
+        "type": "object",
+        "required": ["sessionId", "url"],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "pattern": "^cs_[a-zA-Z0-9]+$",
+            "description": "Stripe Checkout Session ID",
+            "example": "cs_test_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8s9T0"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Stripe Checkout URL to redirect user",
+            "example": "https://checkout.stripe.com/c/pay/cs_test_..."
+          }
+        }
+      }
+    },
+    "401": {
+      "description": "Unauthorized - user not authenticated",
+      "schema": {
+        "type": "object",
+        "required": ["error", "error_code"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "Unauthorized"
+          },
+          "error_code": {
+            "type": "string",
+            "const": "UNAUTHORIZED"
+          }
+        }
+      }
+    },
+    "503": {
+      "description": "Service Unavailable - Stripe not configured or unreachable",
+      "schema": {
+        "type": "object",
+        "required": ["error", "error_code"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "Stripe is not configured"
+          },
+          "error_code": {
+            "type": "string",
+            "const": "STRIPE_UNAVAILABLE"
+          }
+        }
+      }
+    }
+  },
+  "examples": {
+    "success": {
+      "request": {
+        "method": "POST",
+        "headers": {
+          "Cookie": "sb-project-auth-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "sessionId": "cs_test_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8s9T0",
+          "url": "https://checkout.stripe.com/c/pay/cs_test_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8s9T0#fidkdWxOYHwnPyd1blpxYHZxWjA0T3RzRkNBdUxVbWpDYE5PSkNfT2huUEZ0NjFNaTQ0SUhocGtnVFNka2A3cDNHUWRTVTFoY0BcYktzNU08a29kNWdPc3BuU0hmMmJDdFFgQ0RRMnx9Z1V9PzwxQEdVMCcpJ3VpbGtuQH11anZgYUxhJz8nY0cwZHZpZnE8cGtiMmZjYTxnJyknd2BjYHd3YHdKd2xibGsnPydtcXF1dj8qKmRtZGZ1amdaYCkoJ3Zs"
+        }
+      }
+    },
+    "unauthorized": {
+      "request": {
+        "method": "POST",
+        "headers": {}
+      },
+      "response": {
+        "status": 401,
+        "body": {
+          "error": "Unauthorized",
+          "error_code": "UNAUTHORIZED"
+        }
+      }
+    }
+  },
+  "businessLogic": {
+    "priceCalculation": "$9.99 USD base price (Stripe Price ID from env)",
+    "taxCalculation": "Automatic via Stripe Tax based on billing address",
+    "currencySupport": "Stripe handles currency conversion if browser locale differs from USD",
+    "sessionExpiration": "24 hours (Stripe default)",
+    "successRedirect": "{origin}/app?success=true",
+    "cancelRedirect": "{origin}/app?canceled=true"
+  },
+  "testCases": [
+    {
+      "name": "Authenticated user receives checkout URL",
+      "setup": "Valid auth session cookie",
+      "expectedStatus": 200,
+      "expectedResponse": {
+        "sessionId": "string matching ^cs_",
+        "url": "string starting with https://checkout.stripe.com"
+      }
+    },
+    {
+      "name": "Unauthenticated request rejected",
+      "setup": "No auth cookie",
+      "expectedStatus": 401,
+      "expectedResponse": {
+        "error_code": "UNAUTHORIZED"
+      }
+    },
+    {
+      "name": "Stripe unavailable returns 503",
+      "setup": "STRIPE_SECRET_KEY not set",
+      "expectedStatus": 503,
+      "expectedResponse": {
+        "error_code": "STRIPE_UNAVAILABLE"
+      }
+    }
+  ]
+}

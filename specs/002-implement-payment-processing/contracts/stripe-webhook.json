@@ -1,0 +1,271 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Stripe Webhook API Contract",
+  "description": "POST /api/webhooks/stripe - Handles Stripe webhook events for payment confirmation",
+  "endpoint": "/api/webhooks/stripe",
+  "method": "POST",
+  "authentication": "Stripe signature verification (stripe-signature header)",
+  "request": {
+    "headers": {
+      "Content-Type": "application/json",
+      "stripe-signature": {
+        "type": "string",
+        "pattern": "^t=[0-9]+,v1=[a-f0-9]+$",
+        "description": "Stripe webhook signature for verification",
+        "example": "t=1614556800,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd"
+      }
+    },
+    "body": {
+      "type": "object",
+      "required": ["id", "object", "type", "data"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evt_[a-zA-Z0-9]+$",
+          "description": "Stripe event ID for idempotency"
+        },
+        "object": {
+          "type": "string",
+          "const": "event"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "checkout.session.completed",
+            "payment_intent.succeeded",
+            "payment_intent.payment_failed",
+            "charge.refunded",
+            "customer.subscription.created",
+            "customer.subscription.updated",
+            "customer.subscription.deleted",
+            "invoice.payment_succeeded",
+            "invoice.payment_failed"
+          ]
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "type": "object",
+              "description": "Event-specific data (Session, PaymentIntent, Refund, etc.)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "responses": {
+    "200": {
+      "description": "Webhook received and processed successfully",
+      "schema": {
+        "type": "object",
+        "required": ["received"],
+        "properties": {
+          "received": {
+            "type": "boolean",
+            "const": true
+          },
+          "duplicate": {
+            "type": "boolean",
+            "description": "True if event was already processed (idempotency check)"
+          }
+        }
+      }
+    },
+    "400": {
+      "description": "Invalid signature or missing signature header",
+      "schema": {
+        "type": "object",
+        "required": ["error", "error_code"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": ["Invalid signature", "Missing signature"]
+          },
+          "error_code": {
+            "type": "string",
+            "enum": ["INVALID_SIGNATURE", "MISSING_SIGNATURE"]
+          }
+        }
+      }
+    },
+    "500": {
+      "description": "Webhook processing failed",
+      "schema": {
+        "type": "object",
+        "required": ["error", "error_code"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "Webhook processing failed"
+          },
+          "error_code": {
+            "type": "string",
+            "const": "WEBHOOK_ERROR"
+          }
+        }
+      }
+    }
+  },
+  "eventHandlers": {
+    "checkout.session.completed": {
+      "description": "Payment successful - add credits to user account",
+      "logic": [
+        "Extract session.client_reference_id (user ID)",
+        "Extract session.customer (Stripe customer ID)",
+        "Extract session.amount_total (amount paid)",
+        "Call add_credits(user_id, 10, transaction_id) database function",
+        "Create payment_transactions record with status='completed'",
+        "Create credit_batches record with 1-year expiration",
+        "Update user_quota: available_credits += 10"
+      ],
+      "expectedOutcome": "User receives 10 credits, balance updated, transaction recorded"
+    },
+    "charge.refunded": {
+      "description": "Refund issued - deduct credits from user account",
+      "logic": [
+        "Extract refund.payment_intent (link to transaction)",
+        "Find payment_transactions by stripe_payment_intent_id",
+        "Call process_refund(transaction_id, refund_id, amount, currency)",
+        "Update user_quota: available_credits -= 10 (can go negative)",
+        "Update payment_transactions: status='refunded'",
+        "Create payment_refunds record"
+      ],
+      "expectedOutcome": "Credits deducted, balance can be negative, refund recorded"
+    },
+    "payment_intent.payment_failed": {
+      "description": "Payment failed - log for admin review",
+      "logic": [
+        "Log payment failure",
+        "Do NOT create transaction or credit batch",
+        "Alert administrators if repeated failures for same user"
+      ],
+      "expectedOutcome": "Failure logged, no credits allocated, admin notified"
+    }
+  },
+  "idempotency": {
+    "key": "event.id (Stripe event ID)",
+    "mechanism": "Database lookup in stripe_webhook_events table",
+    "logic": [
+      "Check if event.id exists in stripe_webhook_events",
+      "If exists: return { received: true, duplicate: true }",
+      "If not exists: insert event.id, process webhook, return { received: true }"
+    ],
+    "purpose": "Prevent duplicate credit allocation if Stripe retries webhook"
+  },
+  "security": {
+    "signatureVerification": {
+      "method": "stripe.webhooks.constructEvent(body, signature, webhookSecret)",
+      "onFailure": "Return 400 Invalid Signature",
+      "purpose": "Prevent webhook spoofing attacks"
+    },
+    "webhookSecret": {
+      "env": "STRIPE_WEBHOOK_SECRET",
+      "format": "whsec_...",
+      "obtained": "Stripe Dashboard → Developers → Webhooks → Reveal Secret"
+    }
+  },
+  "examples": {
+    "checkoutCompleted": {
+      "request": {
+        "method": "POST",
+        "headers": {
+          "stripe-signature": "t=1614556800,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd"
+        },
+        "body": {
+          "id": "evt_1234567890",
+          "object": "event",
+          "type": "checkout.session.completed",
+          "data": {
+            "object": {
+              "id": "cs_test_abc123",
+              "client_reference_id": "user-uuid-123",
+              "customer": "cus_123",
+              "amount_total": 999,
+              "currency": "usd"
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "received": true
+        }
+      }
+    },
+    "duplicateEvent": {
+      "request": {
+        "method": "POST",
+        "headers": {
+          "stripe-signature": "t=1614556800,v1=..."
+        },
+        "body": {
+          "id": "evt_already_processed",
+          "type": "checkout.session.completed",
+          "data": {}
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "received": true,
+          "duplicate": true
+        }
+      }
+    },
+    "invalidSignature": {
+      "request": {
+        "method": "POST",
+        "headers": {
+          "stripe-signature": "t=1614556800,v1=invalid_signature"
+        },
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "error": "Invalid signature",
+          "error_code": "INVALID_SIGNATURE"
+        }
+      }
+    }
+  },
+  "testCases": [
+    {
+      "name": "checkout.session.completed adds credits",
+      "setup": "Valid webhook with session data",
+      "expectedBehavior": [
+        "Event logged in stripe_webhook_events",
+        "Transaction created with status='completed'",
+        "Credit batch created with 1-year expiration",
+        "User quota updated: available_credits += 10"
+      ]
+    },
+    {
+      "name": "Duplicate event returns duplicate=true",
+      "setup": "Event ID already in stripe_webhook_events",
+      "expectedBehavior": [
+        "No database changes",
+        "Returns { received: true, duplicate: true }"
+      ]
+    },
+    {
+      "name": "Invalid signature rejected",
+      "setup": "Signature doesn't match webhook secret",
+      "expectedBehavior": [
+        "Returns 400 Invalid Signature",
+        "No processing occurs"
+      ]
+    },
+    {
+      "name": "charge.refunded deducts credits",
+      "setup": "Valid refund webhook",
+      "expectedBehavior": [
+        "Transaction status updated to 'refunded'",
+        "User quota: available_credits -= 10 (can go negative)",
+        "Refund record created in payment_refunds"
+      ]
+    }
+  ]
+}
