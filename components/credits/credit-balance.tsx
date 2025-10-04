@@ -61,7 +61,7 @@ export function CreditBalance({ userId, className }: CreditBalanceProps) {
   }
 
   return (
-    <div className={`flex items-center gap-2 text-sm ${className}`}>
+    <div className={`flex items-center gap-2 text-sm ${className}`} data-testid="credit-balance">
       <Coins className="h-4 w-4" />
       <span className="font-medium">
         {balance} {balance === 1 ? 'credit' : 'credits'}
