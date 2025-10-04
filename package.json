@@ -10,8 +10,10 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
+    "test:prod": "TEST_API_URL=https://retrophotoai.com vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:e2e:prod": "PLAYWRIGHT_TEST_BASE_URL=https://retrophotoai.com playwright test",
     "lighthouse": "lhci autorun",
     "analyze": "ANALYZE=true next build"
   },

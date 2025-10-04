@@ -19,6 +19,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
+import { randomUUID } from 'crypto'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://sbwgkocarqvonkdlitdx.supabase.co'
 const supabaseServiceKey =
@@ -68,26 +69,31 @@ async function checkPrerequisites() {
   const functions = ['add_credits', 'deduct_credit', 'process_refund', 'expire_credits']
 
   for (const fn of functions) {
-    const { error } = await supabase.rpc(fn as any, {}).catch((e) => ({ error: e }))
-    // Function should exist (even if it errors due to wrong params)
-    if (error?.message?.includes('not found')) {
-      console.error(`❌ Function ${fn} not found - migration 016 not applied?`)
-      return false
+    try {
+      await supabase.rpc(fn, {})
+      console.log(`✅ Function ${fn} exists`)
+    } catch (error) {
+      // Function should exist (even if it errors due to wrong params)
+      if (error?.message?.includes('not found')) {
+        console.error(`❌ Function ${fn} not found - migration 016 not applied?`)
+        return false
+      }
+      console.log(`✅ Function ${fn} exists (params error expected)`)
     }
-    console.log(`✅ Function ${fn} exists`)
   }
 
   return true
 }
 
 async function createTestUser() {
-  const testUserId = 'test-user-' + Date.now()
+  const testUserId = randomUUID()
 
   // Insert test user credits record
   const { data, error } = await supabase
     .from('user_credits')
     .insert({
       user_id: testUserId,
+      fingerprint: 'test-fingerprint-' + Date.now(),
       credits_balance: 0,
       total_credits_purchased: 0,
       credits_expired: 0,
@@ -104,7 +110,7 @@ async function createTestUser() {
   return testUserId
 }
 
-async function testCheckoutSession(userId: string) {
+async function testCheckoutSession(userId) {
   console.log('\n📦 Testing checkout session creation...\n')
 
   try {
@@ -138,13 +144,13 @@ async function testCheckoutSession(userId: string) {
     console.log('   Metadata:', session.metadata)
 
     return session
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ Checkout session failed:', error.message)
     return null
   }
 }
 
-async function simulateWebhookEvent(sessionId: string, userId: string) {
+async function simulateWebhookEvent(sessionId, userId) {
   console.log('\n🔔 Simulating webhook event...\n')
 
   const mockEvent = {
@@ -233,7 +239,7 @@ async function simulateWebhookEvent(sessionId: string, userId: string) {
   return transaction.id
 }
 
-async function verifyResults(userId: string, transactionId: string) {
+async function verifyResults(userId, transactionId) {
   console.log('\n🔍 Verifying results...\n')
 
   // Check user credits
@@ -286,7 +292,7 @@ async function verifyResults(userId: string, transactionId: string) {
   return passed
 }
 
-async function cleanup(userId: string) {
+async function cleanup(userId) {
   console.log('\n🧹 Cleaning up test data...')
 
   await supabase.from('credit_batches').delete().eq('user_id', userId)
