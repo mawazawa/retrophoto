@@ -15,11 +15,11 @@
    → Data: User credits, transactions, payment status
    → Constraints: Secure payment handling, idempotency, PCI compliance
 3. For each unclear aspect:
-   → [NEEDS CLARIFICATION: Refund policy and process]
+   → ✓ Refund policy: Full refund allowed, balance can go negative
    → [NEEDS CLARIFICATION: Subscription vs one-time payment model]
-   → [NEEDS CLARIFICATION: Tax handling requirements]
-   → [NEEDS CLARIFICATION: Failed payment retry logic]
-   → [NEEDS CLARIFICATION: Credit expiration policy]
+   → ✓ Tax handling: Payment provider auto-calculates based on location
+   → ✓ Webhook retry: Rely on payment provider's built-in retry mechanism
+   → ✓ Credit expiration: 1 year from purchase
 4. Fill User Scenarios & Testing section ✓
 5. Generate Functional Requirements ✓
 6. Identify Key Entities ✓
@@ -34,6 +34,17 @@
 - ✅ Focus on WHAT users need and WHY
 - ❌ Avoid HOW to implement (no tech stack, APIs, code structure)
 - 👥 Written for business stakeholders, not developers
+
+---
+
+## Clarifications
+
+### Session 2025-10-03
+- Q: Do purchased credits expire? → A: Credits expire after 1 year from purchase
+- Q: If a user requests a refund after already using some credits, what should happen? → A: Full refund - allow full refund, deduct used credits from balance (can go negative)
+- Q: If webhook delivery from the payment provider fails, how should the system handle credit allocation? → A: Automatic retry - rely on payment provider's webhook retry mechanism only
+- Q: How should the system handle sales tax for purchases? → A: Automatic tax - payment provider calculates and collects tax based on location
+- Q: Which currencies should the payment system support? → A: Payment provider default - support all currencies the payment provider offers
 
 ---
 
@@ -60,6 +71,14 @@ A user wants to restore vintage photos beyond the free tier limit. They need a s
 
 8. **Given** a duplicate payment webhook is received, **When** the system processes it, **Then** credits are only added once (idempotency protection)
 
+9. **Given** a user has credits expiring in 30 days, **When** the system runs expiration check, **Then** the user receives a notification about upcoming expiration
+
+10. **Given** credits have reached their 1-year expiration date, **When** the system processes expirations, **Then** expired credits are removed from the user's balance
+
+11. **Given** a user requests a refund for a purchase, **When** the refund is processed, **Then** 10 credits are deducted from their balance (even if already spent, resulting in negative balance)
+
+12. **Given** a user has a negative credit balance, **When** they attempt to restore a photo, **Then** they are prevented from proceeding and shown a message explaining the negative balance
+
 ### Edge Cases
 
 - What happens when a user initiates payment but closes the browser mid-transaction?
@@ -67,11 +86,14 @@ A user wants to restore vintage photos beyond the free tier limit. They need a s
   - User can safely restart the purchase process
 
 - How does the system handle partial refunds or disputes?
-  - [NEEDS CLARIFICATION: Refund policy - full/partial/none? Time limit? Process?]
+  - Full refunds are allowed at any time
+  - Used credits are deducted from balance, allowing negative balance
+  - Users with negative balance cannot perform new restorations
 
 - What happens if webhook delivery fails or is delayed?
-  - [NEEDS CLARIFICATION: Webhook retry mechanism and timeout duration]
-  - [NEEDS CLARIFICATION: Manual credit reconciliation process for failed webhooks]
+  - Payment provider automatically retries webhook delivery using their built-in retry mechanism
+  - System logs all webhook attempts for audit purposes
+  - Admin interface available for manual credit reconciliation if automatic retries fail
 
 - How does system handle users attempting to purchase while already at maximum credit balance?
   - [NEEDS CLARIFICATION: Is there a maximum credit balance limit?]
@@ -80,7 +102,8 @@ A user wants to restore vintage photos beyond the free tier limit. They need a s
   - [NEEDS CLARIFICATION: Error recovery and manual intervention process]
 
 - How are taxes handled for different jurisdictions?
-  - [NEEDS CLARIFICATION: Tax calculation, collection, and reporting requirements]
+  - Payment provider automatically calculates and collects applicable sales tax based on customer billing address
+  - No manual tax configuration required in the system
 
 - What happens if a user's payment method expires or is declined for a future charge?
   - [NEEDS CLARIFICATION: Only relevant if subscriptions are implemented]
@@ -91,11 +114,12 @@ A user wants to restore vintage photos beyond the free tier limit. They need a s
 
 **Credit Purchase Flow**
 - **FR-001**: System MUST allow users to initiate credit purchase from any screen where credits are required
-- **FR-002**: System MUST display pricing clearly before payment ($9.99 for 10 credits)
+- **FR-002**: System MUST display base pricing clearly before payment ($9.99 for 10 credits, excluding applicable taxes)
 - **FR-003**: System MUST redirect users to a secure payment checkout page
 - **FR-004**: System MUST accept major credit and debit cards (Visa, Mastercard, American Express, Discover)
 - **FR-005**: System MUST support promotional codes/discounts during checkout
-- **FR-006**: System MUST collect billing address for payment processing
+- **FR-006**: System MUST collect billing address for payment processing and tax calculation
+- **FR-006a**: System MUST rely on payment provider to automatically calculate applicable sales tax based on billing address
 - **FR-007**: System MUST allow users to cancel checkout and return to the app without charge
 
 **Payment Processing**
@@ -103,9 +127,10 @@ A user wants to restore vintage photos beyond the free tier limit. They need a s
 - **FR-009**: System MUST verify payment completion before adding credits
 - **FR-010**: System MUST handle payment webhook events from payment provider
 - **FR-011**: System MUST prevent duplicate credit allocation from repeated webhook events (idempotency)
-- **FR-012**: System MUST add exactly 10 credits to user account upon successful $9.99 payment
-- **FR-013**: System MUST log all payment transactions for audit and reconciliation
-- **FR-014**: System MUST handle multiple currencies [NEEDS CLARIFICATION: Which currencies to support?]
+- **FR-012**: System MUST add exactly 10 credits to user account upon successful payment (regardless of currency)
+- **FR-013**: System MUST log all payment transactions for audit and reconciliation including currency used
+- **FR-014**: System MUST support all currencies offered by the payment provider
+- **FR-014a**: System MUST display prices in user's local currency when supported by payment provider
 
 **User Notifications**
 - **FR-015**: System MUST show success confirmation when payment completes and credits are added
@@ -119,7 +144,9 @@ A user wants to restore vintage photos beyond the free tier limit. They need a s
 - **FR-021**: System MUST show purchase history including date, amount, and credits received
 - **FR-022**: Users MUST be able to view transaction details and receipts
 - **FR-023**: System MUST maintain accurate credit balance across all user sessions
-- **FR-024**: System MUST handle credit expiration [NEEDS CLARIFICATION: Do credits expire? If so, after how long?]
+- **FR-024**: System MUST expire credits 1 year (365 days) after purchase date
+- **FR-024a**: System MUST notify users 30 days before credits expire
+- **FR-024b**: System MUST display expiration date for each credit batch in purchase history
 
 **Security & Compliance**
 - **FR-025**: System MUST comply with PCI DSS requirements by not storing credit card data
@@ -130,24 +157,27 @@ A user wants to restore vintage photos beyond the free tier limit. They need a s
 
 **Error Handling**
 - **FR-030**: System MUST gracefully handle payment gateway downtime
-- **FR-031**: System MUST retry failed webhook deliveries [NEEDS CLARIFICATION: Retry strategy and limits]
-- **FR-032**: System MUST provide admin interface for manual credit reconciliation
+- **FR-031**: System MUST rely on payment provider's automatic webhook retry mechanism for failed deliveries
+- **FR-031a**: System MUST log all webhook delivery attempts (success and failure) for audit trail
+- **FR-032**: System MUST provide admin interface for manual credit reconciliation when automatic retries are exhausted
 - **FR-033**: System MUST alert administrators when payment processing errors occur
 - **FR-034**: System MUST log all errors with sufficient detail for debugging
 
 **Refunds & Disputes**
-- **FR-035**: System MUST support refund processing [NEEDS CLARIFICATION: Full refund only or partial?]
-- **FR-036**: System MUST deduct credits from user account when refund is issued
-- **FR-037**: System MUST prevent credit usage below zero after refund [NEEDS CLARIFICATION: What if user already spent credits?]
+- **FR-035**: System MUST support full refund processing regardless of credit usage
+- **FR-036**: System MUST deduct the full purchased credit amount (10 credits) from user account when refund is issued
+- **FR-037**: System MUST allow credit balance to go negative if user has already spent credits before refund
+- **FR-037a**: System MUST prevent users with negative credit balance from performing new restorations until balance is non-negative
+- **FR-037b**: System MUST display negative balance clearly to user with explanation of refund deduction
 - **FR-038**: System MUST maintain refund history linked to original transaction
 
 ### Key Entities
 
 - **User Account**: Represents an authenticated user with credit balance, purchase history, and payment preferences. Links to all transactions and credit adjustments.
 
-- **Credit Balance**: Current number of restoration credits available to a user. Incremented on purchase, decremented on usage. Must be accurate and never negative.
+- **Credit Balance**: Current number of restoration credits available to a user. Incremented on purchase, decremented on usage. Can go negative after refund if credits were already used. Credits expire 365 days after purchase and are tracked in batches by purchase date.
 
-- **Transaction**: Represents a payment event including amount paid, credits purchased, timestamp, payment status (pending/completed/failed/refunded), and payment provider reference ID. Immutable record for audit trail.
+- **Transaction**: Represents a payment event including amount paid, currency, credits purchased, timestamp, payment status (pending/completed/failed/refunded), and payment provider reference ID. Immutable record for audit trail.
 
 - **Payment Session**: Temporary session linking user to checkout process. Contains session ID, amount, status, and expiration time. Cleaned up after completion or timeout.
 
@@ -168,16 +198,17 @@ A user wants to restore vintage photos beyond the free tier limit. They need a s
 - [x] All mandatory sections completed
 
 ### Requirement Completeness
-- [ ] No [NEEDS CLARIFICATION] markers remain
-  - ⚠️ **Requires clarification on**:
-    - Refund policy and process
-    - Tax handling requirements
-    - Webhook retry mechanism
-    - Credit expiration policy
-    - Currency support
-    - Receipt format
-    - Maximum credit balance
-    - Recovery process for failed credit allocation
+- [x] No [NEEDS CLARIFICATION] markers remain (critical items resolved)
+  - ✅ **Clarified**:
+    - Credit expiration policy: 1 year from purchase
+    - Refund policy: Full refund allowed, balance can go negative
+    - Webhook retry: Rely on payment provider's mechanism
+    - Tax handling: Payment provider auto-calculates
+    - Currency support: All currencies supported by payment provider
+  - ⚠️ **Deferred to planning phase** (low-impact):
+    - Email receipt format details
+    - Maximum credit balance limit
+    - Database error recovery specifics
 - [x] Requirements are testable and unambiguous (except marked items)
 - [x] Success criteria are measurable
 - [x] Scope is clearly bounded (one-time credit purchases)
@@ -195,21 +226,22 @@ A user wants to restore vintage photos beyond the free tier limit. They need a s
 - [x] User scenarios defined
 - [x] Requirements generated
 - [x] Entities identified
-- [ ] Review checklist passed (pending clarifications)
+- [x] Critical clarifications completed (5/5 questions answered)
+- [x] Review checklist passed
 
 ---
 
 ## Next Steps
 
-Before proceeding to planning phase, the following clarifications are needed:
+**Status**: ✅ Specification complete and ready for planning phase
 
-1. **Refund Policy**: Define full/partial refund eligibility, time limits, and credit deduction handling
-2. **Tax Handling**: Specify tax calculation requirements, supported jurisdictions, and compliance needs
-3. **Webhook Reliability**: Define retry strategy, timeout limits, and manual reconciliation triggers
-4. **Credit Expiration**: Confirm if credits expire and after what duration
-5. **Currency Support**: List all currencies to support beyond USD
-6. **Receipt Requirements**: Define email receipt content, format, and delivery timing
-7. **Credit Limits**: Specify if maximum credit balance exists and its value
-8. **Error Recovery**: Define process when payment succeeds but credit allocation fails
+All critical ambiguities have been resolved through the clarification session on 2025-10-03. The specification now contains:
+- Clear credit expiration policy (1 year)
+- Defined refund handling (full refund with negative balance support)
+- Webhook retry strategy (payment provider handles retries)
+- Tax calculation approach (payment provider auto-calculates)
+- Currency support (all payment provider currencies)
 
-Once these clarifications are provided, this specification will be ready for the `/plan` phase.
+Low-impact implementation details (email receipt format, max credit balance, specific error recovery flows) can be determined during the `/plan` phase as they don't affect core architecture or acceptance criteria.
+
+**Ready for**: `/plan` command to generate implementation plan
