@@ -46,7 +46,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check quota
+    console.log('[RESTORE] Step 1: Checking quota for', fingerprint);
     const hasQuota = await checkQuota(fingerprint);
+    console.log('[RESTORE] Quota check result:', hasQuota);
     if (!hasQuota) {
       return NextResponse.json(
         {
@@ -60,10 +62,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload original
+    console.log('[RESTORE] Step 2: Uploading original image');
     logger.uploadStart(fingerprint, file.size, file.type);
     const originalUrl = await uploadOriginalImage(file, fingerprint);
+    console.log('[RESTORE] Original uploaded to:', originalUrl);
 
     // Create session
+    console.log('[RESTORE] Step 3: Creating session');
     const supabase = await createClient();
     const { data: session, error: sessionError } = await supabase
       .from('upload_sessions')
@@ -76,11 +81,17 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (sessionError) throw sessionError;
+    if (sessionError) {
+      console.error('[RESTORE] Session creation error:', sessionError);
+      throw sessionError;
+    }
+    console.log('[RESTORE] Session created:', session.id);
 
     // Process with AI
+    console.log('[RESTORE] Step 4: Starting AI restoration');
     logger.restorationStart(session.id);
     const restoredUrl = await restoreImage(originalUrl);
+    console.log('[RESTORE] AI restoration complete:', restoredUrl);
 
     // Download and validate resolution (T050a)
     const restoredBuffer = await fetch(restoredUrl).then((r) =>
@@ -155,14 +166,33 @@ export async function POST(request: NextRequest) {
       ttm_seconds: ttmSeconds,
     });
   } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
+    // Comprehensive error logging
+    console.error('RESTORE API ERROR - Raw:', error);
+    console.error('RESTORE API ERROR - Type:', typeof error);
+    console.error('RESTORE API ERROR - Constructor:', error?.constructor?.name);
     
-    // Log detailed error for debugging
-    console.error('RESTORE API ERROR:', {
-      message: err.message,
-      stack: err.stack,
-      name: err.name,
-    });
+    // Try to extract meaningful error information
+    let errorDetails: any = {};
+    if (error instanceof Error) {
+      errorDetails = {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      };
+    } else if (typeof error === 'object' && error !== null) {
+      errorDetails = {
+        ...error,
+        stringified: JSON.stringify(error, null, 2),
+      };
+    } else {
+      errorDetails = {
+        value: String(error),
+      };
+    }
+    
+    console.error('RESTORE API ERROR - Parsed:', JSON.stringify(errorDetails, null, 2));
+    
+    const err = error instanceof Error ? error : new Error(JSON.stringify(error));
     
     logger.error('Restoration failed', {
       error: err.message,
