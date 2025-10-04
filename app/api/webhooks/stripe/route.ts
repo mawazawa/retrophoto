@@ -13,21 +13,9 @@ const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
 }) : null
 
 // Use service role key for webhook handler (bypasses RLS)
-const supabase = supabaseUrl && supabaseServiceKey 
+const supabase = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null
-
-// Track processed events to prevent duplicate processing (idempotency)
-const processedEvents = new Map<string, number>()
-
-// Clean up old processed events (keep last 1000 events)
-function cleanupProcessedEvents() {
-  if (processedEvents.size > 1000) {
-    const entries = Array.from(processedEvents.entries())
-    entries.sort((a, b) => a[1] - b[1])
-    entries.slice(0, 500).forEach(([key]) => processedEvents.delete(key))
-  }
-}
 
 export async function POST(request: Request) {
   try {
@@ -68,22 +56,42 @@ export async function POST(request: Request) {
       )
     }
 
-    // Idempotency check - prevent duplicate event processing
-    if (processedEvents.has(event.id)) {
-      console.log(`Event ${event.id} already processed, skipping`)
+    // Database-backed idempotency check
+    const { data: existingEvent } = await supabase
+      .from('stripe_webhook_events')
+      .select('id, processing_status')
+      .eq('event_id', event.id)
+      .single()
+
+    if (existingEvent) {
+      console.log(`Event ${event.id} already processed (status: ${existingEvent.processing_status})`)
       return NextResponse.json({ received: true, duplicate: true })
     }
 
-    // Mark event as processed
-    processedEvents.set(event.id, Date.now())
-    cleanupProcessedEvents()
+    // Log webhook event for idempotency and audit
+    const { error: insertError } = await supabase
+      .from('stripe_webhook_events')
+      .insert({
+        event_id: event.id,
+        event_type: event.type,
+        payload: event as any,
+        processing_status: 'pending',
+      })
+
+    if (insertError) {
+      // If insert fails due to unique constraint, event is duplicate
+      if (insertError.code === '23505') {
+        console.log(`Event ${event.id} duplicate detected via DB constraint`)
+        return NextResponse.json({ received: true, duplicate: true })
+      }
+      console.error('Error logging webhook event:', insertError)
+    }
 
     // Handle the event
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
 
-        // Payment successful - add credits to user account
         console.log('Checkout completed:', {
           sessionId: session.id,
           userId: session.client_reference_id,
@@ -91,32 +99,58 @@ export async function POST(request: Request) {
           amountTotal: session.amount_total,
         })
 
-        // Determine number of credits based on price
-        // Default: 10 credits for the credit pack
-        const creditsToAdd = 10
-
-        // Add credits to user account
-        if (session.client_reference_id) {
-          const { data, error } = await supabase.rpc('add_credits', {
-            p_user_id: session.client_reference_id,
-            p_fingerprint: session.client_reference_id, // Use user ID as fingerprint for logged-in users
-            p_credits_to_add: creditsToAdd,
-            p_stripe_customer_id: session.customer as string,
-          })
-
-          if (error) {
-            console.error('Error adding credits:', error)
-            throw new Error(`Failed to add credits: ${error.message}`)
-          }
-
-          console.log('Credits added successfully:', {
-            userId: session.client_reference_id,
-            creditsAdded: creditsToAdd,
-            newBalance: data?.[0]?.new_balance,
-          })
-        } else {
-          console.warn('No user ID in checkout session metadata')
+        if (!session.client_reference_id) {
+          console.warn('No user ID in checkout session')
+          break
         }
+
+        const creditsToAdd = 10
+        const userId = session.client_reference_id
+
+        // Create payment transaction record
+        const { data: transaction, error: txError } = await supabase
+          .from('payment_transactions')
+          .insert({
+            user_id: userId,
+            stripe_session_id: session.id,
+            stripe_payment_intent_id: session.payment_intent as string,
+            stripe_customer_id: session.customer as string,
+            amount: session.amount_total!,
+            currency: session.currency!,
+            credits_purchased: creditsToAdd,
+            status: 'completed',
+            metadata: {
+              mode: session.mode,
+              payment_status: session.payment_status,
+            },
+          })
+          .select('id')
+          .single()
+
+        if (txError) {
+          console.error('Error creating transaction:', txError)
+          throw new Error(`Failed to create transaction: ${txError.message}`)
+        }
+
+        // Add credits with batch tracking
+        const { data: creditData, error: creditError } = await supabase.rpc('add_credits', {
+          p_user_id: userId,
+          p_credits_to_add: creditsToAdd,
+          p_transaction_id: transaction.id,
+        })
+
+        if (creditError) {
+          console.error('Error adding credits:', creditError)
+          throw new Error(`Failed to add credits: ${creditError.message}`)
+        }
+
+        console.log('Payment processed successfully:', {
+          userId,
+          transactionId: transaction.id,
+          creditsAdded: creditsToAdd,
+          newBalance: creditData?.new_balance,
+          batchId: creditData?.batch_id,
+        })
 
         break
       }
@@ -254,9 +288,30 @@ export async function POST(request: Request) {
         console.log(`Unhandled event type: ${event.type}`)
     }
 
+    // Mark event as successfully processed
+    await supabase
+      .from('stripe_webhook_events')
+      .update({
+        processing_status: 'success',
+        processed_at: new Date().toISOString(),
+      })
+      .eq('event_id', event.id)
+
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error('Error processing webhook:', error)
+
+    // Mark event as failed (if event was logged)
+    if (event?.id && supabase) {
+      await supabase
+        .from('stripe_webhook_events')
+        .update({
+          processing_status: 'failed',
+          error_message: error instanceof Error ? error.message : 'Unknown error',
+        })
+        .eq('event_id', event.id)
+    }
+
     return NextResponse.json(
       { error: 'Webhook processing failed', error_code: 'WEBHOOK_PROCESSING_FAILED' },
       { status: 500 }
