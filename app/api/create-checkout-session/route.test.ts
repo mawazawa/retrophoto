@@ -32,7 +32,6 @@ vi.mock('@/lib/auth/server', () => ({
 
 // Import after mocks
 import { POST } from './route'
-import Stripe from 'stripe'
 
 describe('POST /api/create-checkout-session', () => {
   beforeEach(() => {

@@ -59,6 +59,7 @@ export function PurchaseHistory({ userId, className }: PurchaseHistoryProps) {
 
   useEffect(() => {
     fetchHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
   if (!userId) {
