@@ -28,6 +28,14 @@ Apply these migrations in order via **Supabase Dashboard → SQL Editor**:
 **File**: `015_extend_user_credits.sql`
 **Purpose**: Extend user_credits table for negative balance support
 
+### 6. Migration 016: database_functions
+**File**: `016_database_functions.sql`
+**Purpose**: Create 4 database functions for payment processing
+- `add_credits(user_id, credits, transaction_id)` - Add credits with batch tracking
+- `deduct_credit(user_id)` - FIFO credit deduction
+- `process_refund(transaction_id, refund_id, amount, currency)` - Handle refunds
+- `expire_credits()` - Cron job to expire old batches
+
 ## How to Apply
 
 1. Go to [Supabase Dashboard](https://supabase.com/dashboard)

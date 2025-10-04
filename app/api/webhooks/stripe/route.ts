@@ -33,14 +33,14 @@ export async function POST(request: Request) {
   try {
     if (!stripe || !webhookSecret) {
       return NextResponse.json(
-        { error: 'Stripe is not configured' },
+        { error: 'Stripe is not configured', error_code: 'STRIPE_UNAVAILABLE' },
         { status: 503 }
       )
     }
 
     if (!supabase) {
       return NextResponse.json(
-        { error: 'Supabase is not configured' },
+        { error: 'Supabase is not configured', error_code: 'SUPABASE_UNAVAILABLE' },
         { status: 503 }
       )
     }
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
     if (!signature) {
       return NextResponse.json(
-        { error: 'Missing signature' },
+        { error: 'Missing signature', error_code: 'MISSING_SIGNATURE' },
         { status: 400 }
       )
     }
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     } catch (err) {
       console.error('Webhook signature verification failed:', err)
       return NextResponse.json(
-        { error: 'Invalid signature' },
+        { error: 'Invalid signature', error_code: 'INVALID_SIGNATURE' },
         { status: 400 }
       )
     }
@@ -206,6 +206,50 @@ export async function POST(request: Request) {
         break
       }
 
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge
+
+        console.log('Charge refunded:', {
+          chargeId: charge.id,
+          amount: charge.amount_refunded,
+          paymentIntent: charge.payment_intent,
+        })
+
+        // Find transaction by payment intent or charge ID
+        const { data: transactions } = await supabase
+          .from('payment_transactions')
+          .select('id')
+          .eq('stripe_payment_intent_id', charge.payment_intent as string)
+          .limit(1)
+
+        if (transactions && transactions.length > 0) {
+          const transactionId = transactions[0].id
+
+          // Process refund using database function
+          const { data: refundData, error: refundError } = await supabase.rpc('process_refund', {
+            p_transaction_id: transactionId,
+            p_stripe_refund_id: charge.id,
+            p_amount_refunded: charge.amount_refunded,
+            p_currency: charge.currency,
+          })
+
+          if (refundError) {
+            console.error('Error processing refund:', refundError)
+            throw new Error(`Failed to process refund: ${refundError.message}`)
+          }
+
+          console.log('Refund processed successfully:', {
+            transactionId,
+            newBalance: refundData?.new_balance,
+            creditsDeducted: refundData?.credits_deducted,
+          })
+        } else {
+          console.warn('No transaction found for refunded charge:', charge.id)
+        }
+
+        break
+      }
+
       default:
         console.log(`Unhandled event type: ${event.type}`)
     }
@@ -214,7 +258,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error processing webhook:', error)
     return NextResponse.json(
-      { error: 'Webhook processing failed' },
+      { error: 'Webhook processing failed', error_code: 'WEBHOOK_PROCESSING_FAILED' },
       { status: 500 }
     )
   }
