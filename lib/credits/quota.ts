@@ -1,4 +1,3 @@
-// @ts-nocheck - Database functions (deduct_credit, etc.) not in type definitions until migrations applied
 /**
  * Credit-based quota system
  * Uses FIFO credit deduction from credit_batches
@@ -54,8 +53,8 @@ export async function deductCredit(userId: string): Promise<{
 
   return {
     success: true,
-    batchId: data?.batch_id,
-    remainingInBatch: data?.remaining_in_batch,
+    batchId: (data as any)?.batch_id,
+    remainingInBatch: (data as any)?.remaining_in_batch,
   }
 }
 

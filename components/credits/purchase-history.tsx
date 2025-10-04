@@ -1,4 +1,3 @@
-// @ts-nocheck - payment_transactions table not in type definitions until migrations applied
 "use client"
 
 import { useEffect, useState } from 'react'
@@ -13,7 +12,7 @@ interface Transaction {
   currency: string
   credits_purchased: number
   status: string
-  created_at: string
+  created_at: string | null
   stripe_session_id: string
 }
 
@@ -128,7 +127,7 @@ export function PurchaseHistory({ userId, className }: PurchaseHistoryProps) {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {formatDistanceToNow(new Date(tx.created_at), { addSuffix: true })}
+                {tx.created_at ? formatDistanceToNow(new Date(tx.created_at), { addSuffix: true }) : 'Unknown date'}
               </p>
             </div>
             <div className="text-right">
