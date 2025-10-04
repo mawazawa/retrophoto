@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   try {
     if (!stripe || !stripePriceId) {
       return NextResponse.json(
-        { error: 'Stripe is not configured' },
+        { error: 'Stripe is not configured', error_code: 'STRIPE_UNAVAILABLE' },
         { status: 503 }
       )
     }
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized', error_code: 'UNAUTHORIZED' },
         { status: 401 }
       )
     }
