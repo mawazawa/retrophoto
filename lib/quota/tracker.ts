@@ -20,7 +20,14 @@ export async function checkQuota(fingerprint: string): Promise<boolean> {
 
   // Function returns array with one result
   const result = data?.[0];
-  return result ? result.remaining > 0 : true;
+
+  // Fail closed: deny access if no quota data returned (security)
+  // This prevents bypassing quota limits when DB fails or returns unexpected data
+  if (!result) {
+    throw new Error('Quota data not available - denying access for security');
+  }
+
+  return result.remaining > 0;
 }
 
 export async function incrementQuota(fingerprint: string): Promise<void> {
