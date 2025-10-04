@@ -18,6 +18,8 @@ const supabase = supabaseUrl && supabaseServiceKey
   : null
 
 export async function POST(request: Request) {
+  let event: Stripe.Event | undefined
+
   try {
     if (!stripe || !webhookSecret) {
       return NextResponse.json(
@@ -43,8 +45,6 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
-
-    let event: Stripe.Event
 
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
@@ -302,14 +302,18 @@ export async function POST(request: Request) {
     console.error('Error processing webhook:', error)
 
     // Mark event as failed (if event was logged)
-    if (event?.id && supabase) {
-      await supabase
-        .from('stripe_webhook_events')
-        .update({
-          processing_status: 'failed',
-          error_message: error instanceof Error ? error.message : 'Unknown error',
-        })
-        .eq('event_id', event.id)
+    try {
+      if (supabase && event?.id) {
+        await supabase
+          .from('stripe_webhook_events')
+          .update({
+            processing_status: 'failed',
+            error_message: error instanceof Error ? error.message : 'Unknown error',
+          })
+          .eq('event_id', event.id)
+      }
+    } catch {
+      // Ignore errors in error handler
     }
 
     return NextResponse.json(
