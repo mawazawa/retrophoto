@@ -17,7 +17,7 @@ export interface TTMMetric {
 /**
  * Track TTM metric and alert if threshold exceeded
  */
-export function trackTTM(metric: TTMMetric): void {
+export function trackTTMAlert(metric: TTMMetric): void {
   // Record span for performance monitoring (Sentry v8+ uses startSpan)
   Sentry.startSpan(
     {

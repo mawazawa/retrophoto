@@ -25,8 +25,8 @@ vi.mock('stripe', () => {
   }
 })
 
-// Mock auth
-vi.mock('@/lib/auth/server', () => ({
+// Mock auth/supabase server client
+vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn()
 }))
 
@@ -40,7 +40,7 @@ describe('POST /api/create-checkout-session', () => {
 
   it('should return 200 with sessionId and url for authenticated user', async () => {
     // Arrange: Mock authenticated user
-    const mockCreateClient = (await import('@/lib/auth/server')).createClient as any
+    const mockCreateClient = (await import('@/lib/supabase/server')).createClient as any
     mockCreateClient.mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
@@ -76,7 +76,7 @@ describe('POST /api/create-checkout-session', () => {
 
   it('should return 401 with error_code UNAUTHORIZED for unauthenticated request', async () => {
     // Arrange: Mock unauthenticated user
-    const mockCreateClient = (await import('@/lib/auth/server')).createClient as any
+    const mockCreateClient = (await import('@/lib/supabase/server')).createClient as any
     mockCreateClient.mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({

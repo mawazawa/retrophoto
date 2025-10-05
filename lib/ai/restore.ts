@@ -9,8 +9,6 @@ export async function restoreImage(imageUrl: string): Promise<string> {
   const run = async () => {
     try {
       console.log('[REPLICATE] Starting restoration for:', imageUrl);
-      console.log('[REPLICATE] Token set:', !!process.env.REPLICATE_API_TOKEN);
-      console.log('[REPLICATE] Token length:', process.env.REPLICATE_API_TOKEN?.length || 0);
       
       const output = await replicate.run(
         'jingyunliang/swinir:660d922d33153019e33c487636deb165e8d88df7c40d7f9e3e9f7bf31d92a5f7',
@@ -33,11 +31,7 @@ export async function restoreImage(imageUrl: string): Promise<string> {
 
       return output;
     } catch (error) {
-      console.error('[REPLICATE] Error details:', {
-        message: error instanceof Error ? error.message : String(error),
-        name: error instanceof Error ? error.name : 'Unknown',
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      console.error('[REPLICATE] Error:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   };

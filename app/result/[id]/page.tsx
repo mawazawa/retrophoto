@@ -4,11 +4,11 @@ import { notFound } from 'next/navigation'
 import { ResultClient } from './result-client'
 
 export default async function ResultPage({
-  params
+  params,
 }: {
-  params: Promise<{ id: string }>
+  params: { id: string }
 }) {
-  const { id } = await params
+  const { id } = params
   const supabase = await createClient()
 
   const { data: session } = await supabase

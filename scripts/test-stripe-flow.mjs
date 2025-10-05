@@ -114,6 +114,7 @@ async function testCheckoutSession(userId) {
   console.log('\n📦 Testing checkout session creation...\n')
 
   try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -130,8 +131,8 @@ async function testCheckoutSession(userId) {
         },
       ],
       mode: 'payment',
-      success_url: 'http://localhost:3000/app?success=true',
-      cancel_url: 'http://localhost:3000/app?canceled=true',
+      success_url: `${baseUrl}/app?success=true`,
+      cancel_url: `${baseUrl}/app?canceled=true`,
       metadata: {
         user_id: userId,
         credits: '10',

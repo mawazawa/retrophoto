@@ -297,14 +297,15 @@ Follow constitutional design system (Principle XVII):
  * Generates a shareable deep link for a restoration result.
  *
  * @param sessionId - UUID of the upload session
+ * @param baseUrlOverride - Optional base URL (e.g., request origin)
  * @returns Fully-qualified URL (e.g., https://retrophoto.app/result/abc123)
  *
  * @example
  * const link = generateDeepLink('550e8400-e29b-41d4-a716-446655440000')
  * // Returns: "https://retrophoto.app/result/550e8400-e29b-41d4-a716-446655440000"
  */
-export function generateDeepLink(sessionId: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+export function generateDeepLink(sessionId: string, baseUrlOverride?: string): string {
+  const baseUrl = baseUrlOverride || process.env.NEXT_PUBLIC_BASE_URL
   return `${baseUrl}/result/${sessionId}`
 }
 ```
