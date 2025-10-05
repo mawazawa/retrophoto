@@ -21,7 +21,7 @@ describe('Bug Fix: generateDeepLink Input Validation', () => {
   const originalEnv = process.env.NEXT_PUBLIC_BASE_URL
 
   beforeEach(() => {
-    process.env.NEXT_PUBLIC_BASE_URL = 'https://retrophoto.app'
+    process.env.NEXT_PUBLIC_BASE_URL = 'https://retrophotoai.com'
   })
 
   afterEach(() => {
@@ -83,22 +83,22 @@ describe('Bug Fix: generateDeepLink Input Validation', () => {
   describe('Whitespace Handling', () => {
     it('should trim leading whitespace', () => {
       const link = generateDeepLink('   session-123')
-      expect(link).toBe('https://retrophoto.app/result/session-123')
+      expect(link).toBe('https://retrophotoai.com/result/session-123')
     })
 
     it('should trim trailing whitespace', () => {
       const link = generateDeepLink('session-123   ')
-      expect(link).toBe('https://retrophoto.app/result/session-123')
+      expect(link).toBe('https://retrophotoai.com/result/session-123')
     })
 
     it('should trim both leading and trailing whitespace', () => {
       const link = generateDeepLink('  session-123  ')
-      expect(link).toBe('https://retrophoto.app/result/session-123')
+      expect(link).toBe('https://retrophotoai.com/result/session-123')
     })
 
     it('should preserve internal spaces after encoding', () => {
       const link = generateDeepLink('session 123')
-      expect(link).toBe('https://retrophoto.app/result/session%20123')
+      expect(link).toBe('https://retrophotoai.com/result/session%20123')
     })
   })
 
@@ -131,19 +131,19 @@ describe('Bug Fix: generateDeepLink Input Validation', () => {
     it('should generate correct link for valid UUID v4', () => {
       const sessionId = '550e8400-e29b-41d4-a716-446655440000'
       const link = generateDeepLink(sessionId)
-      expect(link).toBe(`https://retrophoto.app/result/${sessionId}`)
+      expect(link).toBe(`https://retrophotoai.com/result/${sessionId}`)
     })
 
     it('should generate correct link for alphanumeric session ID', () => {
       const sessionId = 'abc123xyz'
       const link = generateDeepLink(sessionId)
-      expect(link).toBe(`https://retrophoto.app/result/${sessionId}`)
+      expect(link).toBe(`https://retrophotoai.com/result/${sessionId}`)
     })
 
     it('should generate correct link with hyphens and underscores', () => {
       const sessionId = 'test-session_123'
       const link = generateDeepLink(sessionId)
-      expect(link).toBe(`https://retrophoto.app/result/${sessionId}`)
+      expect(link).toBe(`https://retrophotoai.com/result/${sessionId}`)
     })
 
     it('should work with localhost in development', () => {
@@ -185,7 +185,7 @@ describe('Bug Fix: generateDeepLink Input Validation', () => {
   describe('Edge Cases', () => {
     it('should handle session IDs with dots (but not path traversal)', () => {
       const link = generateDeepLink('session.id.123')
-      expect(link).toBe('https://retrophoto.app/result/session.id.123')
+      expect(link).toBe('https://retrophotoai.com/result/session.id.123')
     })
 
     it('should handle very long session IDs', () => {

@@ -6,7 +6,7 @@ describe('generateDeepLink', () => {
 
   beforeEach(() => {
     // Set test environment variable
-    process.env.NEXT_PUBLIC_BASE_URL = 'https://retrophoto.app'
+    process.env.NEXT_PUBLIC_BASE_URL = 'https://retrophotoai.com'
   })
 
   afterEach(() => {
@@ -18,7 +18,7 @@ describe('generateDeepLink', () => {
     const sessionId = '123e4567-e89b-12d3-a456-426614174000'
     const link = generateDeepLink(sessionId)
 
-    expect(link).toBe(`https://retrophoto.app/result/${sessionId}`)
+    expect(link).toBe(`https://retrophotoai.com/result/${sessionId}`)
   })
 
   it('should include protocol and domain', () => {
@@ -26,7 +26,7 @@ describe('generateDeepLink', () => {
     const link = generateDeepLink(sessionId)
 
     expect(link).toMatch(/^https:\/\//)
-    expect(link).toContain('retrophoto.app')
+    expect(link).toContain('retrophotoai.com')
   })
 
   it('should include result path', () => {
@@ -40,7 +40,7 @@ describe('generateDeepLink', () => {
     const uuidv4 = '550e8400-e29b-41d4-a716-446655440000'
     const link = generateDeepLink(uuidv4)
 
-    expect(link).toBe(`https://retrophoto.app/result/${uuidv4}`)
+    expect(link).toBe(`https://retrophotoai.com/result/${uuidv4}`)
   })
 
   it('should work with localhost in development', () => {

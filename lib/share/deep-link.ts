@@ -27,7 +27,7 @@ export function generateDeepLink(sessionId: string): string {
     throw new Error('Session ID cannot contain path separators');
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://retrophoto.app';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://retrophotoai.com';
 
   // URL-encode the session ID to handle special characters safely
   const encodedId = encodeURIComponent(trimmedId);
