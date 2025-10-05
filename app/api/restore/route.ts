@@ -13,7 +13,7 @@ import { checkQuota, incrementQuota } from '@/lib/quota/tracker';
 import { trackTTM } from '@/lib/metrics/analytics';
 import { validateImageFile } from '@/lib/utils';
 import { logger } from '@/lib/observability/logger';
-import { trackTTM as trackTTMAlert, trackRestorationFailure, trackValidationError } from '@/lib/observability/alerts';
+import { trackTTMAlert, trackRestorationFailure, trackValidationError } from '@/lib/observability/alerts';
 import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
     const gifBuffer = await generateRevealGIF(originalUrl, finalRestoredUrl);
     const gifUrl = await uploadRestoredImage(gifBuffer, `${session.id}-gif`);
 
+    // Generate deep link (uses NEXT_PUBLIC_BASE_URL or fallback to retrophotoai.com)
     const deepLink = generateDeepLink(session.id);
 
     // Create restoration result
