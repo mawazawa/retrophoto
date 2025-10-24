@@ -33,12 +33,14 @@ fi
 
 # Migration files in order
 MIGRATIONS=(
+    "010_create_user_credits.sql"
     "011_credit_batches.sql"
     "012_payment_transactions.sql"
     "013_stripe_webhook_events.sql"
     "014_payment_refunds.sql"
     "015_extend_user_credits.sql"
     "016_database_functions.sql"
+    "017_extend_upload_sessions.sql"
 )
 
 MIGRATION_DIR="lib/supabase/migrations"
@@ -58,11 +60,36 @@ for migration in "${MIGRATIONS[@]}"; do
 
     echo -e "${YELLOW}Applying: $migration${NC}"
 
-    # Execute SQL using psql or Supabase API
-    # Note: This assumes you have direct database access
-    # For production, use Supabase Dashboard SQL Editor instead
+    # Try to apply via Supabase CLI
+    if command -v supabase &> /dev/null; then
+        # Check if we can connect to the database
+        DB_URL="${NEXT_PUBLIC_SUPABASE_URL/https:\/\//}"
+        DB_URL="${DB_URL/.supabase.co/}"
 
-    echo -e "${GREEN}✓ $migration applied${NC}"
+        # Use Supabase CLI to execute the SQL
+        if supabase db execute --db-url "$DATABASE_URL" --file "$migration_file" 2>/dev/null; then
+            echo -e "${GREEN}✓ $migration applied successfully${NC}"
+        else
+            # Fallback: Display SQL for manual execution
+            echo -e "${YELLOW}⚠ Could not auto-apply. Use Supabase Dashboard SQL Editor:${NC}"
+            echo ""
+            echo "-- Copy this SQL:"
+            echo "-- File: $migration"
+            cat "$migration_file"
+            echo ""
+            read -p "Press Enter after applying this migration manually..."
+        fi
+    else
+        # No Supabase CLI - show manual instructions
+        echo -e "${YELLOW}⚠ Supabase CLI not found. Apply manually:${NC}"
+        echo ""
+        echo "1. Open Supabase Dashboard → SQL Editor"
+        echo "2. Copy and paste this SQL:"
+        echo ""
+        cat "$migration_file"
+        echo ""
+        read -p "Press Enter after applying this migration manually..."
+    fi
 done
 
 echo ""
