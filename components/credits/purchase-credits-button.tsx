@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
+import { generateFingerprint } from '@/lib/quota/client-tracker'
 
 interface PurchaseCreditsButtonProps {
   variant?: 'default' | 'outline' | 'ghost'
@@ -21,12 +22,17 @@ export function PurchaseCreditsButton({
     setIsLoading(true)
 
     try {
+      // Generate fingerprint for guest checkout support
+      const fingerprint = await generateFingerprint()
+
+      // Create FormData to match API expectations
+      const formData = new FormData()
+      formData.append('fingerprint', fingerprint)
+
       // Create Stripe checkout session
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        body: formData, // Send as FormData, not JSON
       })
 
       if (!response.ok) {
