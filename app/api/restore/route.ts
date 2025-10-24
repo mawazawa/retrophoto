@@ -45,20 +45,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check quota
-    console.log('[RESTORE] Step 1: Checking quota for', fingerprint);
-    const hasQuota = await checkQuota(fingerprint);
-    console.log('[RESTORE] Quota check result:', hasQuota);
-    if (!hasQuota) {
-      return NextResponse.json(
-        {
-          error:
-            'Free restore limit reached. Upgrade for unlimited restorations.',
-          error_code: 'QUOTA_EXCEEDED',
-          upgrade_url: '/upgrade',
-        },
-        { status: 429 }
-      );
+    // Check authentication and credits
+    console.log('[RESTORE] Step 1: Checking authentication and credits');
+    const supabaseAuth = await createClient();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+
+    let userId: string | null = null;
+    let usePaidCredits = false;
+
+    if (user) {
+      // Authenticated user - check credit balance
+      userId = user.id;
+      const { data: userCredits, error: creditsError } = await supabaseAuth
+        .from('user_credits')
+        .select('available_credits')
+        .eq('user_id', userId)
+        .single();
+
+      if (!creditsError && userCredits && userCredits.available_credits > 0) {
+        usePaidCredits = true;
+        console.log('[RESTORE] User has credits:', userCredits.available_credits);
+      } else {
+        console.log('[RESTORE] User has no credits, checking free quota');
+      }
+    }
+
+    // If no paid credits, check free quota
+    if (!usePaidCredits) {
+      console.log('[RESTORE] Checking free quota for', fingerprint);
+      const hasQuota = await checkQuota(fingerprint);
+      console.log('[RESTORE] Quota check result:', hasQuota);
+      if (!hasQuota) {
+        return NextResponse.json(
+          {
+            error:
+              'Free restore limit reached. Purchase credits for unlimited restorations.',
+            error_code: 'QUOTA_EXCEEDED',
+            upgrade_url: '/pricing',
+          },
+          { status: 429 }
+        );
+      }
     }
 
     // Upload original
@@ -67,6 +94,34 @@ export async function POST(request: NextRequest) {
     const originalUrl = await uploadOriginalImage(file, fingerprint);
     console.log('[RESTORE] Original uploaded to:', originalUrl);
 
+    // Deduct credit if using paid credits (before processing)
+    if (usePaidCredits && userId) {
+      console.log('[RESTORE] Deducting credit for user:', userId);
+
+      // Use service role client for RPC call
+      const supabaseServiceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      const supabaseService = await import('@supabase/supabase-js').then(m =>
+        m.createClient(supabaseServiceUrl, supabaseServiceKey)
+      );
+
+      const { data: deductResult, error: deductError } = await supabaseService
+        .rpc('deduct_credit', { p_user_id: userId });
+
+      if (deductError) {
+        console.error('[RESTORE] Credit deduction error:', deductError);
+        return NextResponse.json(
+          {
+            error: 'Failed to deduct credit. Please try again.',
+            error_code: 'CREDIT_DEDUCTION_FAILED',
+          },
+          { status: 500 }
+        );
+      }
+
+      console.log('[RESTORE] Credit deducted:', deductResult);
+    }
+
     // Create session
     console.log('[RESTORE] Step 3: Creating session');
     const supabase = await createClient();
@@ -74,6 +129,7 @@ export async function POST(request: NextRequest) {
       .from('upload_sessions')
       .insert({
         user_fingerprint: fingerprint,
+        user_id: userId, // Track user_id if authenticated
         original_url: originalUrl,
         status: 'processing',
         retry_count: 0, // Explicitly set to 0 for clarity
@@ -141,8 +197,10 @@ export async function POST(request: NextRequest) {
       .update({ status: 'complete' })
       .eq('id', session.id);
 
-    // Increment quota
-    await incrementQuota(fingerprint);
+    // Increment quota only if using free tier
+    if (!usePaidCredits) {
+      await incrementQuota(fingerprint);
+    }
 
     // Track TTM
     const ttmSeconds = (Date.now() - startTime) / 1000;

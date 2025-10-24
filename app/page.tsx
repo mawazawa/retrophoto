@@ -16,8 +16,18 @@ function PremiumPricingCard() {
   async function handleUpgrade() {
     try {
       setIsLoading(true)
+
+      // Import fingerprint generator dynamically (client-side only)
+      const { generateFingerprint } = await import('@/lib/quota/client-tracker')
+      const fingerprint = await generateFingerprint()
+
+      // Create FormData to match API expectations
+      const formData = new FormData()
+      formData.append('fingerprint', fingerprint)
+
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
+        body: formData,
       })
 
       const data = await response.json()
@@ -26,9 +36,11 @@ function PremiumPricingCard() {
         window.location.href = data.url
       } else {
         console.error('No checkout URL returned')
+        alert('Failed to create checkout session. Please try again.')
       }
     } catch (error) {
       console.error('Error creating checkout session:', error)
+      alert('Failed to start checkout. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -78,7 +90,7 @@ function PremiumPricingCard() {
         </li>
         <li className="flex items-start gap-3">
           <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-          <span className="text-sm font-medium">Credits never expire</span>
+          <span className="text-sm font-medium">Credits valid for 1 year</span>
         </li>
       </ul>
 
