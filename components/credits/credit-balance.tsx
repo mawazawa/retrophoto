@@ -5,36 +5,39 @@ import { createClient } from '@/lib/supabase/client'
 import { Coins } from 'lucide-react'
 
 interface CreditBalanceProps {
-  userId?: string
   className?: string
 }
 
-export function CreditBalance({ userId, className }: CreditBalanceProps) {
+export function CreditBalance({ className }: CreditBalanceProps) {
   const [balance, setBalance] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     async function fetchBalance() {
-      if (!userId) {
-        setIsLoading(false)
-        return
-      }
-
       try {
         const supabase = createClient()
 
-        // Query user_credits table
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+          setIsLoading(false)
+          return
+        }
+
+        // Query user_credits table (use 'available_credits' per schema)
         const { data, error } = await supabase
           .from('user_credits')
-          .select('credits_balance')
-          .eq('user_id', userId)
+          .select('available_credits')
+          .eq('user_id', user.id)
           .single()
 
         if (error) {
           console.error('Error fetching credit balance:', error)
+          // User might not have credits row yet (first purchase creates it)
           setBalance(0)
         } else {
-          setBalance(data?.credits_balance ?? 0)
+          setBalance(data?.available_credits ?? 0)
         }
       } catch (error) {
         console.error('Error:', error)
@@ -45,7 +48,7 @@ export function CreditBalance({ userId, className }: CreditBalanceProps) {
     }
 
     fetchBalance()
-  }, [userId])
+  }, [])
 
   if (isLoading) {
     return (
