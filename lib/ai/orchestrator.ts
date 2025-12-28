@@ -1,6 +1,10 @@
 /**
  * AI Orchestrator
  * Multi-model restoration pipeline coordinator
+ *
+ * Feature flag: ENABLE_MULTI_MODEL
+ * - When disabled (default): Uses direct SwinIR restoration (faster, cheaper)
+ * - When enabled: Uses AI triage to route to different models (requires ANTHROPIC_API_KEY)
  */
 
 import sharp from 'sharp';
@@ -8,17 +12,36 @@ import type {
   RestorationResult,
   RestorationOptions,
   ImageAnalysis,
-  QualityReport,
   ModelType,
 } from './types';
-import { analyzeImageForRouting, estimateProcessingCost } from './triage';
 import { restoreImage as restoreWithSwinIR } from './restore';
 import { validateQuality } from './quality-validator';
 
-// Model-specific providers (to be implemented)
-// import { restoreWithOpenAI } from './providers/openai';
-// import { restoreWithGemini } from './providers/gemini';
-// import { restoreWithGrok } from './providers/xai';
+// Feature flag for multi-model orchestration
+// Disabled by default until other providers are implemented
+const ENABLE_MULTI_MODEL = process.env.ENABLE_MULTI_MODEL === 'true';
+
+/**
+ * Create default analysis when triage is disabled or unavailable
+ */
+function createDefaultAnalysis(reasoning: string): ImageAnalysis {
+  return {
+    content_type: 'unknown',
+    damage_profile: {
+      fading: 0.5,
+      tears: 0.3,
+      stains: 0.2,
+      scratches: 0.3,
+      noise: 0.4,
+      text_detected: false,
+    },
+    resolution: { width: 0, height: 0, short_edge: 0 },
+    faces_detected: 0,
+    confidence: 1.0,
+    reasoning,
+    recommended_model: 'replicate_swinir',
+  };
+}
 
 export async function orchestrateRestoration(
   imageUrl: string,
@@ -27,34 +50,30 @@ export async function orchestrateRestoration(
   const startTime = Date.now();
 
   console.log('[ORCHESTRATOR] Starting restoration pipeline');
-  console.log('[ORCHESTRATOR] Options:', options);
+  console.log('[ORCHESTRATOR] Multi-model enabled:', ENABLE_MULTI_MODEL);
 
   try {
-    // Step 1: Triage (analyze image and route to optimal model)
-    console.log('[ORCHESTRATOR] Step 1: Image triage and analysis');
     let analysis: ImageAnalysis;
 
-    if (options.model === 'auto' || !options.model) {
-      // Use AI triage to select best model
-      analysis = await analyzeImageForRouting(imageUrl);
-    } else {
+    // Step 1: Triage (skip when multi-model is disabled for faster processing)
+    if (ENABLE_MULTI_MODEL && (options.model === 'auto' || !options.model)) {
+      console.log('[ORCHESTRATOR] Step 1: Image triage and analysis');
+      try {
+        // Dynamic import to avoid loading Anthropic SDK when not needed
+        const { analyzeImageForRouting } = await import('./triage');
+        analysis = await analyzeImageForRouting(imageUrl);
+      } catch (error) {
+        console.warn('[ORCHESTRATOR] Triage failed, using direct SwinIR:', error);
+        analysis = createDefaultAnalysis('Triage failed, using direct model');
+      }
+    } else if (options.model && options.model !== 'auto') {
       // User specified a model
-      analysis = {
-        content_type: 'unknown',
-        damage_profile: {
-          fading: 0.5,
-          tears: 0.3,
-          stains: 0.2,
-          scratches: 0.3,
-          noise: 0.4,
-          text_detected: false,
-        },
-        resolution: { width: 0, height: 0, short_edge: 0 },
-        faces_detected: 0,
-        confidence: 1.0,
-        reasoning: 'User-specified model',
-        recommended_model: options.model as ModelType,
-      };
+      analysis = createDefaultAnalysis('User-specified model');
+      analysis.recommended_model = options.model as ModelType;
+    } else {
+      // Multi-model disabled - use direct SwinIR (fastest path)
+      console.log('[ORCHESTRATOR] Using direct SwinIR (multi-model disabled)');
+      analysis = createDefaultAnalysis('Direct SwinIR mode');
     }
 
     // Get actual image metadata
@@ -80,27 +99,13 @@ export async function orchestrateRestoration(
 
     let restoredUrl: string;
 
-    // For now, all routes go through SwinIR until other providers are implemented
-    // In production, this would route to different providers based on selectedModel
+    // All routes currently go through SwinIR (other providers not implemented)
     switch (selectedModel) {
       case 'openai_gpt5_thinking':
-        // TODO: Implement OpenAI provider
-        // restoredUrl = await restoreWithOpenAI(imageUrl, analysis);
-        console.log('[ORCHESTRATOR] OpenAI provider not yet implemented, using SwinIR fallback');
-        restoredUrl = await restoreWithSwinIR(imageUrl);
-        break;
-
       case 'google_gemini_pro_2_5':
-        // TODO: Implement Gemini provider
-        // restoredUrl = await restoreWithGemini(imageUrl, analysis);
-        console.log('[ORCHESTRATOR] Gemini provider not yet implemented, using SwinIR fallback');
-        restoredUrl = await restoreWithSwinIR(imageUrl);
-        break;
-
       case 'xai_grok4_fast':
-        // TODO: Implement Grok provider
-        // restoredUrl = await restoreWithGrok(imageUrl, analysis);
-        console.log('[ORCHESTRATOR] Grok provider not yet implemented, using SwinIR fallback');
+        // These providers are not yet implemented
+        console.log(`[ORCHESTRATOR] ${selectedModel} not implemented, using SwinIR`);
         restoredUrl = await restoreWithSwinIR(imageUrl);
         break;
 
@@ -124,15 +129,17 @@ export async function orchestrateRestoration(
     });
 
     // Step 4: Calculate cost breakdown (if requested)
-    const costBreakdown = options.return_metadata
-      ? {
-          triage: 0.02,
-          primary_model: estimateProcessingCost(analysis) - 0.02 - 0.05 - 0.01,
-          upscaling: 0.05,
-          validation: 0.01,
-          total: estimateProcessingCost(analysis),
-        }
-      : undefined;
+    let costBreakdown;
+    if (options.return_metadata) {
+      const baseCost = ENABLE_MULTI_MODEL ? 0.02 : 0; // Triage cost
+      costBreakdown = {
+        triage: baseCost,
+        primary_model: 0.05, // SwinIR cost
+        upscaling: 0.05,
+        validation: 0.01,
+        total: baseCost + 0.11,
+      };
+    }
 
     const result: RestorationResult = {
       restored_url: restoredUrl,
@@ -168,7 +175,6 @@ export async function orchestrateBatchRestoration(
   const results: RestorationResult[] = [];
 
   // Process sequentially to avoid overwhelming external APIs
-  // In production, this could use a queue system (BullMQ, etc.)
   for (let i = 0; i < imageUrls.length; i++) {
     console.log(`[ORCHESTRATOR] Processing batch photo ${i + 1}/${imageUrls.length}`);
 
@@ -197,22 +203,7 @@ export async function orchestrateBatchRestoration(
           ],
           recommendation: 'REJECT',
         },
-        analysis: {
-          content_type: 'unknown',
-          damage_profile: {
-            fading: 0,
-            tears: 0,
-            stains: 0,
-            scratches: 0,
-            noise: 0,
-            text_detected: false,
-          },
-          resolution: { width: 0, height: 0, short_edge: 0 },
-          faces_detected: 0,
-          confidence: 0,
-          reasoning: 'Processing failed',
-          recommended_model: 'replicate_swinir',
-        },
+        analysis: createDefaultAnalysis('Processing failed'),
       });
     }
   }

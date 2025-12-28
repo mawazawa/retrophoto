@@ -1,4 +1,3 @@
-// @ts-nocheck - Type errors expected until database is deployed
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -14,6 +13,7 @@ import { trackTTM } from '@/lib/metrics/analytics';
 import { validateImageFile } from '@/lib/utils';
 import { logger } from '@/lib/observability/logger';
 import { trackTTMAlert, trackRestorationFailure, trackValidationError } from '@/lib/observability/alerts';
+import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit';
 import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
@@ -33,6 +33,15 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    // Check rate limit
+    const rateLimitResult = checkRateLimit(fingerprint, rateLimitConfigs.restore);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(rateLimitedResponse(rateLimitResult), {
+        status: 429,
+        headers: getRateLimitHeaders(rateLimitResult),
+      });
     }
 
     // Validate file
@@ -58,13 +67,13 @@ export async function POST(request: NextRequest) {
       userId = user.id;
       const { data: userCredits, error: creditsError } = await supabaseAuth
         .from('user_credits')
-        .select('available_credits')
+        .select('credits_balance')
         .eq('user_id', userId)
         .single();
 
-      if (!creditsError && userCredits && userCredits.available_credits > 0) {
+      if (!creditsError && userCredits && userCredits.credits_balance > 0) {
         usePaidCredits = true;
-        console.log('[RESTORE] User has credits:', userCredits.available_credits);
+        console.log('[RESTORE] User has credits:', userCredits.credits_balance);
       } else {
         console.log('[RESTORE] User has no credits, checking free quota');
       }
@@ -167,19 +176,32 @@ export async function POST(request: NextRequest) {
       session.id
     );
 
-    // Generate share artifacts
-    const ogCardResponse = await generateOGCard(originalUrl, finalRestoredUrl);
-    const ogCardBuffer = Buffer.from(await ogCardResponse.arrayBuffer());
-    const ogCardUrl = await uploadRestoredImage(
-      ogCardBuffer,
-      `${session.id}-og`
-    );
-
-    const gifBuffer = await generateRevealGIF(originalUrl, finalRestoredUrl);
-    const gifUrl = await uploadRestoredImage(gifBuffer, `${session.id}-gif`);
-
-    // Generate deep link (uses NEXT_PUBLIC_BASE_URL or fallback to retrophotoai.com)
+    // Generate share artifacts in parallel for better performance
     const deepLink = generateDeepLink(session.id);
+
+    const [ogCardUrl, gifUrl] = await Promise.all([
+      // Generate and upload OG card
+      (async () => {
+        try {
+          const ogCardResponse = await generateOGCard(originalUrl, finalRestoredUrl);
+          const ogCardBuffer = Buffer.from(await ogCardResponse.arrayBuffer());
+          return await uploadRestoredImage(ogCardBuffer, `${session.id}-og`);
+        } catch (error) {
+          console.error('[RESTORE] OG card generation failed:', error);
+          return ''; // Continue even if OG card fails
+        }
+      })(),
+      // Generate and upload GIF
+      (async () => {
+        try {
+          const gifBuffer = await generateRevealGIF(originalUrl, finalRestoredUrl);
+          return await uploadRestoredImage(gifBuffer, `${session.id}-gif`);
+        } catch (error) {
+          console.error('[RESTORE] GIF generation failed:', error);
+          return ''; // Continue even if GIF fails
+        }
+      })(),
+    ]);
 
     // Create restoration result
     await supabase.from('restoration_results').insert({

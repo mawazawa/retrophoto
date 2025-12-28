@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const stripePriceId = process.env.STRIPE_CREDITS_PRICE_ID
@@ -34,6 +35,15 @@ export async function POST(request: Request) {
         { error: 'Missing user ID or fingerprint', error_code: 'MISSING_IDENTIFIER' },
         { status: 400 }
       )
+    }
+
+    // Check rate limit
+    const rateLimitResult = checkRateLimit(userId, rateLimitConfigs.checkout)
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(rateLimitedResponse(rateLimitResult), {
+        status: 429,
+        headers: getRateLimitHeaders(rateLimitResult),
+      })
     }
 
     const { origin } = new URL(request.url)

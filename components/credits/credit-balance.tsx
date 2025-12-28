@@ -25,10 +25,10 @@ export function CreditBalance({ className }: CreditBalanceProps) {
           return
         }
 
-        // Query user_credits table (use 'available_credits' per schema)
+        // Query user_credits table
         const { data, error } = await supabase
           .from('user_credits')
-          .select('available_credits')
+          .select('credits_balance')
           .eq('user_id', user.id)
           .single()
 
@@ -37,7 +37,7 @@ export function CreditBalance({ className }: CreditBalanceProps) {
           // User might not have credits row yet (first purchase creates it)
           setBalance(0)
         } else {
-          setBalance(data?.available_credits ?? 0)
+          setBalance(data?.credits_balance ?? 0)
         }
       } catch (error) {
         console.error('Error:', error)

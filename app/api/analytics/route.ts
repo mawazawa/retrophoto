@@ -1,11 +1,29 @@
-// @ts-nocheck - Type errors expected until database is deployed
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit';
+import { analyticsEventSchema, parseBody, validationErrorResponse } from '@/lib/validation/schemas';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { event_type, session_id, nsm_seconds, ttm_seconds } = body;
+
+    // Validate input
+    const validation = parseBody(analyticsEventSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(validationErrorResponse(validation.error), { status: 400 });
+    }
+
+    const { event_type, session_id, nsm_seconds, ttm_seconds, fingerprint } = validation.data;
+
+    // Check rate limit (use session_id or fingerprint as identifier)
+    const identifier = fingerprint || session_id || request.headers.get('x-forwarded-for') || 'anonymous';
+    const rateLimitResult = checkRateLimit(identifier, rateLimitConfigs.analytics);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(rateLimitedResponse(rateLimitResult), {
+        status: 429,
+        headers: getRateLimitHeaders(rateLimitResult),
+      });
+    }
 
     const supabase = await createClient();
 
@@ -19,6 +37,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Analytics tracking error:', error);
-    return NextResponse.json({ success: false }, { status: 500 });
+    return NextResponse.json({ success: false, error_code: 'ANALYTICS_ERROR' }, { status: 500 });
   }
 }

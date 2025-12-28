@@ -1,4 +1,3 @@
-// @ts-nocheck - Type errors expected until database is deployed
 import { createClient } from '@/lib/supabase/server';
 
 export async function trackTTM(
@@ -22,7 +21,7 @@ export async function trackNSM(
   const supabase = await createClient();
 
   await supabase.from('analytics_events').insert({
-    event_type: 'upload',
+    event_type: 'upload_start',
     session_id: sessionId,
     ttm_seconds: nsmSeconds,
     created_at: new Date().toISOString(),

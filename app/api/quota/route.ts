@@ -1,6 +1,6 @@
-// @ts-nocheck - Type errors expected until database is deployed
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -25,6 +25,15 @@ export async function GET(request: NextRequest) {
       },
       { status: 400 }
     );
+  }
+
+  // Check rate limit
+  const rateLimitResult = checkRateLimit(fingerprint, rateLimitConfigs.quota);
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(rateLimitedResponse(rateLimitResult), {
+      status: 429,
+      headers: getRateLimitHeaders(rateLimitResult),
+    });
   }
 
   try {

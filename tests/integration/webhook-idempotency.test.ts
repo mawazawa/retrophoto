@@ -6,22 +6,32 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://sbwgkocarqvonkdlitdx.supabase.co'
-const supabaseServiceKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNid2drb2NhcnF2b25rZGxpdGR4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTQ2MzI1MiwiZXhwIjoyMDc1MDM5MjUyfQ.6Z5fd4YiRJPw-8Nf7b7cHnWU50WaGSbNP61Qx9YKQns'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+// Skip tests if environment variables are not configured
+const skipTests = !supabaseUrl || !supabaseServiceKey
 
-describe('Webhook Idempotency Integration (T021)', () => {
+// Only create client if env vars are available
+const supabase: SupabaseClient | null = skipTests
+  ? null
+  : createClient(supabaseUrl!, supabaseServiceKey!)
+
+// Helper to get non-null supabase client
+function getSupabase(): SupabaseClient {
+  if (!supabase) throw new Error('Supabase client not initialized')
+  return supabase
+}
+
+describe.skipIf(skipTests)('Webhook Idempotency Integration (T021)', () => {
   const testEventId = 'evt_test_' + Date.now()
-  const testUserId = 'test-user-' + Date.now()
 
   beforeAll(async () => {
+    const client = getSupabase()
     // Check if stripe_webhook_events table exists
-    const { error } = await supabase.from('stripe_webhook_events').select('count').limit(0)
+    const { error } = await client.from('stripe_webhook_events').select('count').limit(0)
 
     if (error) {
       console.warn('⚠️  stripe_webhook_events table not found. Migrations must be applied first.')
@@ -30,15 +40,17 @@ describe('Webhook Idempotency Integration (T021)', () => {
   })
 
   afterAll(async () => {
+    const client = getSupabase()
     // Cleanup test data
-    await supabase.from('stripe_webhook_events').delete().eq('event_id', testEventId)
+    await client.from('stripe_webhook_events').delete().eq('event_id', testEventId)
   })
 
   it.skip('should prevent duplicate webhook processing', async () => {
+    const client = getSupabase()
     // This test requires stripe_webhook_events table
 
     // 1. First webhook event - should succeed
-    const { data: firstEvent, error: firstError } = await supabase
+    const { data: firstEvent, error: firstError } = await client
       .from('stripe_webhook_events')
       .insert({
         event_id: testEventId,
@@ -58,7 +70,7 @@ describe('Webhook Idempotency Integration (T021)', () => {
     expect(firstEvent?.id).toBeDefined()
 
     // 2. Duplicate webhook event - should fail (unique constraint)
-    const { data: duplicateEvent, error: duplicateError } = await supabase
+    const { data: duplicateEvent, error: duplicateError } = await client
       .from('stripe_webhook_events')
       .insert({
         event_id: testEventId, // Same event_id
@@ -79,10 +91,11 @@ describe('Webhook Idempotency Integration (T021)', () => {
   })
 
   it.skip('should track processing status', async () => {
+    const client = getSupabase()
     const eventId = 'evt_test_status_' + Date.now()
 
     // 1. Insert event with pending status
-    const { data: pendingEvent } = await supabase
+    const { data: pendingEvent } = await client
       .from('stripe_webhook_events')
       .insert({
         event_id: eventId,
@@ -96,7 +109,7 @@ describe('Webhook Idempotency Integration (T021)', () => {
     expect(pendingEvent?.processing_status).toBe('pending')
 
     // 2. Update to success status
-    const { data: successEvent } = await supabase
+    const { data: successEvent } = await client
       .from('stripe_webhook_events')
       .update({
         processing_status: 'success',
@@ -110,7 +123,7 @@ describe('Webhook Idempotency Integration (T021)', () => {
     expect(successEvent?.processed_at).toBeDefined()
 
     // 3. Verify status persists across queries
-    const { data: verifyEvent } = await supabase
+    const { data: verifyEvent } = await client
       .from('stripe_webhook_events')
       .select('processing_status')
       .eq('event_id', eventId)
@@ -119,14 +132,15 @@ describe('Webhook Idempotency Integration (T021)', () => {
     expect(verifyEvent?.processing_status).toBe('success')
 
     // Cleanup
-    await supabase.from('stripe_webhook_events').delete().eq('event_id', eventId)
+    await client.from('stripe_webhook_events').delete().eq('event_id', eventId)
   })
 
   it.skip('should handle failed processing', async () => {
+    const client = getSupabase()
     const eventId = 'evt_test_failed_' + Date.now()
 
     // 1. Insert event
-    await supabase.from('stripe_webhook_events').insert({
+    await client.from('stripe_webhook_events').insert({
       event_id: eventId,
       event_type: 'charge.refunded',
       payload: { id: eventId, type: 'charge.refunded' },
@@ -134,7 +148,7 @@ describe('Webhook Idempotency Integration (T021)', () => {
     })
 
     // 2. Mark as failed with error message
-    const { data: failedEvent } = await supabase
+    const { data: failedEvent } = await client
       .from('stripe_webhook_events')
       .update({
         processing_status: 'failed',
@@ -149,10 +163,11 @@ describe('Webhook Idempotency Integration (T021)', () => {
     expect(failedEvent?.error_message).toBe('Transaction not found')
 
     // Cleanup
-    await supabase.from('stripe_webhook_events').delete().eq('event_id', eventId)
+    await client.from('stripe_webhook_events').delete().eq('event_id', eventId)
   })
 
   it.skip('should provide audit trail with payload', async () => {
+    const client = getSupabase()
     const eventId = 'evt_test_audit_' + Date.now()
     const testPayload = {
       id: eventId,
@@ -168,7 +183,7 @@ describe('Webhook Idempotency Integration (T021)', () => {
     }
 
     // Insert event with full payload
-    const { data: auditEvent } = await supabase
+    const { data: auditEvent } = await client
       .from('stripe_webhook_events')
       .insert({
         event_id: eventId,
@@ -186,7 +201,7 @@ describe('Webhook Idempotency Integration (T021)', () => {
     expect(auditEvent?.created_at).toBeDefined()
 
     // Verify audit trail can be queried
-    const { data: auditQuery, count } = await supabase
+    const { data: auditQuery, count } = await client
       .from('stripe_webhook_events')
       .select('*', { count: 'exact' })
       .eq('event_type', 'customer.subscription.created')
@@ -196,7 +211,7 @@ describe('Webhook Idempotency Integration (T021)', () => {
     expect(auditQuery?.some((e) => e.event_id === eventId)).toBe(true)
 
     // Cleanup
-    await supabase.from('stripe_webhook_events').delete().eq('event_id', eventId)
+    await client.from('stripe_webhook_events').delete().eq('event_id', eventId)
   })
 
   it('should document idempotency requirements', () => {
