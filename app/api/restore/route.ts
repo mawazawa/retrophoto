@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getServiceRoleClient } from '@/lib/supabase/service-role';
 import {
   uploadOriginalImage,
   uploadRestoredImage,
@@ -107,12 +108,8 @@ export async function POST(request: NextRequest) {
     if (usePaidCredits && userId) {
       console.log('[RESTORE] Deducting credit for user:', userId);
 
-      // Use service role client for RPC call
-      const supabaseServiceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      const supabaseService = await import('@supabase/supabase-js').then(m =>
-        m.createClient(supabaseServiceUrl, supabaseServiceKey)
-      );
+      // Use cached service role client for RPC call (avoids dynamic import overhead)
+      const supabaseService = getServiceRoleClient();
 
       const { data: deductResult, error: deductError } = await supabaseService
         .rpc('deduct_credit', { p_user_id: userId });
@@ -203,26 +200,25 @@ export async function POST(request: NextRequest) {
       })(),
     ]);
 
-    // Create restoration result
-    await supabase.from('restoration_results').insert({
-      session_id: session.id,
-      restored_url: finalRestoredUrl,
-      og_card_url: ogCardUrl,
-      gif_url: gifUrl,
-      deep_link: deepLink,
-      watermark_applied: true,
-    });
-
-    // Update session status
-    await supabase
-      .from('upload_sessions')
-      .update({ status: 'complete' })
-      .eq('id', session.id);
-
-    // Increment quota only if using free tier
-    if (!usePaidCredits) {
-      await incrementQuota(fingerprint);
-    }
+    // Batch database operations in parallel for better performance
+    await Promise.all([
+      // Create restoration result
+      supabase.from('restoration_results').insert({
+        session_id: session.id,
+        restored_url: finalRestoredUrl,
+        og_card_url: ogCardUrl,
+        gif_url: gifUrl,
+        deep_link: deepLink,
+        watermark_applied: true,
+      }),
+      // Update session status
+      supabase
+        .from('upload_sessions')
+        .update({ status: 'complete' })
+        .eq('id', session.id),
+      // Increment quota only if using free tier
+      ...(usePaidCredits ? [] : [incrementQuota(fingerprint)]),
+    ]);
 
     // Track TTM
     const ttmSeconds = (Date.now() - startTime) / 1000;

@@ -1,0 +1,17 @@
+# RetroPhoto robots.txt
+# https://retrophotoai.com/robots.txt
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://retrophotoai.com/sitemap.xml
+
+# Disallow API routes
+Disallow: /api/
+
+# Disallow auth callback
+Disallow: /auth/callback
+
+# Allow result pages for sharing
+Allow: /result/

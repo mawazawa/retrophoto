@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/react'
 import './globals.css'
 import { RegisterServiceWorker } from './register-sw'
+import { WebVitalsReporter } from '@/components/web-vitals'
+import { SkipLink } from '@/components/skip-link'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -48,8 +50,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={inter.className}>
+        <SkipLink />
         <RegisterServiceWorker />
-        {children}
+        <WebVitalsReporter />
+        <main id="main" tabIndex={-1}>
+          {children}
+        </main>
         <Analytics />
       </body>
     </html>

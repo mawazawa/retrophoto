@@ -1,24 +1,75 @@
+import { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { ResultClient } from './result-client'
 
-export default async function ResultPage({
-  params,
-}: {
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://retrophotoai.com'
+
+interface ResultPageProps {
   params: { id: string }
-}) {
+}
+
+/**
+ * Generate dynamic metadata for result pages
+ * Enables rich social sharing with OG cards
+ */
+export async function generateMetadata({ params }: ResultPageProps): Promise<Metadata> {
+  const { id } = params
+  const supabase = await createClient()
+
+  const { data: result } = await supabase
+    .from('restoration_results')
+    .select('og_card_url, deep_link')
+    .eq('session_id', id)
+    .single()
+
+  const title = 'Your Restored Photo | RetroPhoto'
+  const description = 'See the amazing before and after transformation. Restore your old photos with AI-powered restoration.'
+  const ogImageUrl = result?.og_card_url || `${baseUrl}/api/og-card/${id}`
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      url: result?.deep_link || `${baseUrl}/result/${id}`,
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: 'Before and after photo restoration comparison',
+        },
+      ],
+      siteName: 'RetroPhoto',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImageUrl],
+    },
+    alternates: {
+      canonical: result?.deep_link || `${baseUrl}/result/${id}`,
+    },
+  }
+}
+
+export default async function ResultPage({ params }: ResultPageProps) {
   const { id } = params
   const supabase = await createClient()
 
   const { data: session } = await supabase
     .from('upload_sessions')
-    .select('*')
+    .select('original_url')
     .eq('id', id)
     .single()
 
   const { data: result } = await supabase
     .from('restoration_results')
-    .select('*')
+    .select('restored_url, deep_link, og_card_url')
     .eq('session_id', id)
     .single()
 

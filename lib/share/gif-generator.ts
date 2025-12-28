@@ -1,15 +1,20 @@
 import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 import sharp from 'sharp';
+import { fetchBufferWithRetry, withTimeout } from '@/lib/utils/retry';
 
 export async function generateRevealGIF(
   originalUrl: string,
   restoredUrl: string
 ): Promise<Buffer> {
-  // Download images
-  const [originalBuffer, restoredBuffer] = await Promise.all([
-    fetch(originalUrl).then((r) => r.arrayBuffer()),
-    fetch(restoredUrl).then((r) => r.arrayBuffer()),
-  ]);
+  // Download images with retry and timeout
+  const [originalBuffer, restoredBuffer] = await withTimeout(
+    Promise.all([
+      fetchBufferWithRetry(originalUrl, { retries: 3, minTimeout: 500 }),
+      fetchBufferWithRetry(restoredUrl, { retries: 3, minTimeout: 500 }),
+    ]),
+    30000, // 30 second timeout for both downloads
+    'Image download timed out'
+  );
 
   // Resize to max 800px width and convert to RGBA data
   const original = await sharp(Buffer.from(originalBuffer))

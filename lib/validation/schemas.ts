@@ -10,11 +10,19 @@ import { z } from 'zod'
  * Analytics event schema
  */
 export const analyticsEventSchema = z.object({
-  event_type: z.enum(['upload_start', 'restore_complete', 'share_click', 'upgrade_view']),
+  event_type: z.enum(['upload_start', 'restore_complete', 'share_click', 'upgrade_view', 'web_vital']),
   session_id: z.string().uuid().optional().nullable(),
   ttm_seconds: z.number().positive().optional().nullable(),
   nsm_seconds: z.number().positive().optional().nullable(),
   fingerprint: z.string().min(20).optional(),
+  // Web Vitals fields
+  name: z.string().optional(),
+  value: z.number().optional(),
+  rating: z.enum(['good', 'needs-improvement', 'poor']).optional(),
+  delta: z.number().optional(),
+  deviceType: z.enum(['mobile', 'tablet', 'desktop']).optional(),
+  connectionType: z.string().optional(),
+  url: z.string().optional(),
 })
 
 export type AnalyticsEvent = z.infer<typeof analyticsEventSchema>

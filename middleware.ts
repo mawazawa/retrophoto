@@ -1,7 +1,23 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { securityHeaders, apiSecurityHeaders } from '@/lib/security/headers'
+
+/**
+ * Apply security headers to response
+ */
+function applyHeaders(response: NextResponse, isApi: boolean = false): NextResponse {
+  const headers = isApi ? apiSecurityHeaders : securityHeaders
+
+  Object.entries(headers).forEach(([key, value]) => {
+    response.headers.set(key, value)
+  })
+
+  return response
+}
 
 export async function middleware(request: NextRequest) {
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api/')
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -12,7 +28,7 @@ export async function middleware(request: NextRequest) {
   // Skip auth check if Supabase is not configured
   if (!supabaseUrl || !supabaseKey) {
     console.warn('Supabase credentials not configured, skipping auth middleware')
-    return supabaseResponse
+    return applyHeaders(supabaseResponse, isApiRoute)
   }
 
   const supabase = createServerClient(
@@ -51,7 +67,8 @@ export async function middleware(request: NextRequest) {
     // return NextResponse.redirect(redirectUrl)
   }
 
-  return supabaseResponse
+  // Apply security headers to response
+  return applyHeaders(supabaseResponse, isApiRoute)
 }
 
 export const config = {
