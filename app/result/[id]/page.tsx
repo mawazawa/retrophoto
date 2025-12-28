@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { ResultClient } from './result-client'
+import { isValidUUID } from '@/lib/validation/uuid'
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://retrophotoai.com'
 
@@ -15,6 +16,15 @@ interface ResultPageProps {
  */
 export async function generateMetadata({ params }: ResultPageProps): Promise<Metadata> {
   const { id } = params
+
+  // Validate session ID format before querying database
+  if (!isValidUUID(id)) {
+    return {
+      title: 'Result Not Found | RetroPhoto',
+      description: 'The requested result could not be found.',
+    }
+  }
+
   const supabase = await createClient()
 
   const { data: result } = await supabase
@@ -59,6 +69,12 @@ export async function generateMetadata({ params }: ResultPageProps): Promise<Met
 
 export default async function ResultPage({ params }: ResultPageProps) {
   const { id } = params
+
+  // Validate session ID format before querying database
+  if (!isValidUUID(id)) {
+    notFound()
+  }
+
   const supabase = await createClient()
 
   const { data: session } = await supabase

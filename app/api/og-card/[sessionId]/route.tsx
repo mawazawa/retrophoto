@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateOGCard } from '@/lib/share/og-card';
 import { logger } from '@/lib/observability/logger';
+import { isValidUUID } from '@/lib/validation/uuid';
 
 export async function GET(
   request: NextRequest,
@@ -9,6 +10,12 @@ export async function GET(
 ) {
   try {
     const { sessionId } = await params;
+
+    // Validate session ID format before querying database
+    if (!isValidUUID(sessionId)) {
+      return new Response('Invalid session ID', { status: 400 });
+    }
+
     const supabase = await createClient();
 
     const { data: session } = await supabase
