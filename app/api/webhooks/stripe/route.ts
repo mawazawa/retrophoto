@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import { sendPaymentSuccessEmail, sendPaymentFailureEmail } from '@/lib/email'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
@@ -152,6 +153,16 @@ export async function POST(request: Request) {
           batchId: creditData?.batch_id,
         })
 
+        // Send payment success email if customer email is available
+        if (session.customer_details?.email) {
+          await sendPaymentSuccessEmail(
+            session.customer_details.email,
+            session.amount_total || 0,
+            creditsToAdd,
+            transaction.id
+          ).catch((err) => console.error('Failed to send success email:', err))
+        }
+
         break
       }
 
@@ -175,7 +186,14 @@ export async function POST(request: Request) {
           lastError: paymentIntent.last_payment_error,
         })
 
-        // TODO: Send payment failure notification to user
+        // Send payment failure notification if email available
+        const failureReceipt = paymentIntent.receipt_email
+        if (failureReceipt) {
+          const errorMessage = paymentIntent.last_payment_error?.message
+          await sendPaymentFailureEmail(failureReceipt, errorMessage).catch((err) =>
+            console.error('Failed to send failure email:', err)
+          )
+        }
 
         break
       }
@@ -235,7 +253,13 @@ export async function POST(request: Request) {
           customerId: invoice.customer,
         })
 
-        // TODO: Send payment failure notification to user
+        // Send payment failure notification for invoice
+        if (invoice.customer_email) {
+          await sendPaymentFailureEmail(
+            invoice.customer_email,
+            'Invoice payment failed'
+          ).catch((err) => console.error('Failed to send invoice failure email:', err))
+        }
 
         break
       }
