@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Share2, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
@@ -16,6 +16,16 @@ export function ShareSheet({
   sessionId: string
 }) {
   const [copied, setCopied] = useState(false)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -50,7 +60,11 @@ export function ShareSheet({
       setCopied(true)
       toast.success('Link copied!', 'The share link has been copied to your clipboard.')
       logger.shareEvent(sessionId, 'copy')
-      setTimeout(() => setCopied(false), 2000)
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000)
     } catch (err) {
       // Clipboard access denied or not available
       logger.error('Clipboard copy failed', {

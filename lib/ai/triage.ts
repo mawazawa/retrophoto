@@ -42,6 +42,9 @@ export async function analyzeImageForRouting(imageUrl: string): Promise<ImageAna
 
     // Fetch image and convert to base64
     const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to fetch image for triage: ${imageResponse.status} ${imageResponse.statusText}`);
+    }
     const imageBuffer = await imageResponse.arrayBuffer();
     const base64Image = Buffer.from(imageBuffer).toString('base64');
     const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';

@@ -160,16 +160,21 @@ export async function POST(request: NextRequest) {
     logger.debug('AI restoration complete', { sessionId: session.id });
 
     // Download and validate resolution (T050a)
-    const restoredBuffer = await fetch(restoredUrl).then((r) =>
-      r.arrayBuffer()
-    );
+    const restoredResponse = await fetch(restoredUrl);
+    if (!restoredResponse.ok) {
+      throw new Error(`Failed to fetch restored image: ${restoredResponse.status}`);
+    }
+    const restoredBuffer = await restoredResponse.arrayBuffer();
     const metadata = await sharp(Buffer.from(restoredBuffer)).metadata();
 
-    if (Math.max(metadata.width!, metadata.height!) < 2048) {
+    // Safely check dimensions with fallback
+    const width = metadata.width ?? 0;
+    const height = metadata.height ?? 0;
+    if (Math.max(width, height) < 2048) {
       logger.warn('Restored image below 2048px', {
         sessionId: session.id,
-        width: metadata.width,
-        height: metadata.height,
+        width,
+        height,
       });
     }
 

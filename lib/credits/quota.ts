@@ -4,6 +4,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server'
+import { logger } from '@/lib/observability/logger'
 
 /**
  * Check if user has available credits
@@ -19,8 +20,19 @@ export async function hasCredits(userId: string): Promise<boolean> {
     .eq('user_id', userId)
     .single()
 
+  // PGRST116 = "no rows returned" which means user has no credit record yet
+  if (error && error.code !== 'PGRST116') {
+    // Log actual database errors for debugging
+    logger.error('Failed to check credits', {
+      userId,
+      error: error.message,
+      code: error.code,
+      operation: 'credits',
+    })
+  }
+
   if (error || !data) {
-    // No credit record means 0 credits
+    // No credit record or error means 0 credits (fail-closed)
     return false
   }
 
@@ -71,6 +83,17 @@ export async function getCreditBalance(userId: string): Promise<number> {
     .select('credits_balance')
     .eq('user_id', userId)
     .single()
+
+  // PGRST116 = "no rows returned" which means user has no credit record yet
+  if (error && error.code !== 'PGRST116') {
+    // Log actual database errors for debugging
+    logger.error('Failed to get credit balance', {
+      userId,
+      error: error.message,
+      code: error.code,
+      operation: 'credits',
+    })
+  }
 
   if (error || !data) {
     return 0
