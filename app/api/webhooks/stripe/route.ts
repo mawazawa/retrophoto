@@ -1,23 +1,16 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { headers } from 'next/headers'
-import { createClient } from '@supabase/supabase-js'
+import { getServiceRoleClient } from '@/lib/supabase/service-role'
 import { sendPaymentSuccessEmail, sendPaymentFailureEmail } from '@/lib/email'
 import { logger } from '@/lib/observability/logger'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
   apiVersion: '2025-09-30.clover',
 }) : null
-
-// Use service role key for webhook handler (bypasses RLS)
-const supabase = supabaseUrl && supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : null
 
 export async function POST(request: Request) {
   let event: Stripe.Event | undefined
@@ -30,6 +23,8 @@ export async function POST(request: Request) {
       )
     }
 
+    // Get cached service role client for optimal performance
+    const supabase = getServiceRoleClient()
     if (!supabase) {
       return NextResponse.json(
         { error: 'Supabase is not configured', error_code: 'SUPABASE_UNAVAILABLE' },

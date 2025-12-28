@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit'
+import { validateCsrf, csrfErrorResponse } from '@/lib/security/csrf'
 import { logger } from '@/lib/observability/logger'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
@@ -13,6 +14,11 @@ const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
 
 export async function POST(request: Request) {
   try {
+    // CSRF protection - validate request origin
+    if (!validateCsrf(request)) {
+      return NextResponse.json(csrfErrorResponse, { status: 403 })
+    }
+
     if (!stripe || !stripePriceId) {
       return NextResponse.json(
         { error: 'Stripe is not configured', error_code: 'STRIPE_UNAVAILABLE' },

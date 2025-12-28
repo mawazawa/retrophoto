@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Loader2 } from 'lucide-react'
 import { generateFingerprint } from '@/lib/quota/client-tracker'
 import { toast } from '@/hooks/use-toast'
 
@@ -79,7 +79,14 @@ export function UpgradePrompt({
               onClick={handleUpgrade}
               disabled={isLoading}
             >
-              {isLoading ? 'Loading...' : 'Buy 10 Credits - $9.99'}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Buy 10 Credits - $9.99'
+              )}
             </Button>
             <Button
               variant="outline"

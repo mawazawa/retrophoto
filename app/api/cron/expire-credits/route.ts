@@ -5,11 +5,8 @@
  */
 
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getServiceRoleClient } from '@/lib/supabase/service-role'
 import { logger } from '@/lib/observability/logger'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // Verify cron secret for security
 const CRON_SECRET = process.env.CRON_SECRET || 'dev-cron-secret'
@@ -26,14 +23,14 @@ export async function GET(request: Request) {
     )
   }
 
-  if (!supabaseUrl || !supabaseServiceKey) {
+  // Use cached service role client
+  const supabase = getServiceRoleClient()
+  if (!supabase) {
     return NextResponse.json(
       { error: 'Supabase not configured', error_code: 'SUPABASE_UNAVAILABLE' },
       { status: 503 }
     )
   }
-
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   try {
     logger.info('Starting credit expiration job', { operation: 'cron_expire_credits' })

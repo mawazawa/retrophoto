@@ -8,7 +8,7 @@ import { SignInButton } from '@/components/auth/sign-in-button'
 import { UserMenu } from '@/components/auth/user-menu'
 import { Footer } from '@/components/footer'
 import { BeforeAfterHero } from '@/components/before-after-hero'
-import { Sparkles, Zap, Shield, Clock, Check, ArrowRight } from 'lucide-react'
+import { Sparkles, Zap, Shield, Clock, Check, ArrowRight, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
 function PremiumPricingCard() {
@@ -94,7 +94,14 @@ function PremiumPricingCard() {
       </ul>
 
       <Button className="w-full" onClick={handleUpgrade} disabled={isLoading}>
-        {isLoading ? 'Loading...' : 'Buy 10 Credits'}
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Loading...
+          </>
+        ) : (
+          'Buy 10 Credits'
+        )}
       </Button>
 
       <p className="text-xs text-center text-muted-foreground mt-4">
@@ -128,6 +135,7 @@ export default function LandingPage() {
               width={96}
               height={96}
               className="rounded-lg"
+              priority
             />
             <span className="font-bold text-2xl">RetroPhoto</span>
           </Link>

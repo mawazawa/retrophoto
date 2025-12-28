@@ -15,6 +15,7 @@ import { validateImageFile } from '@/lib/utils';
 import { logger } from '@/lib/observability/logger';
 import { trackTTMAlert, trackRestorationFailure, trackValidationError } from '@/lib/observability/alerts';
 import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit';
+import { validateCsrf, csrfErrorResponse } from '@/lib/security/csrf';
 import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
@@ -22,6 +23,11 @@ export async function POST(request: NextRequest) {
   let fingerprint: string | undefined;
 
   try {
+    // CSRF protection - validate request origin
+    if (!validateCsrf(request)) {
+      return NextResponse.json(csrfErrorResponse, { status: 403 });
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     fingerprint = formData.get('fingerprint') as string;

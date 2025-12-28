@@ -25,6 +25,9 @@ function getSupabase(): SupabaseClient {
   return supabase
 }
 
+// Track whether table exists for conditional test execution
+let tableExists = false
+
 describe.skipIf(skipTests)('Webhook Idempotency Integration (T021)', () => {
   const testEventId = 'evt_test_' + Date.now()
 
@@ -36,6 +39,9 @@ describe.skipIf(skipTests)('Webhook Idempotency Integration (T021)', () => {
     if (error) {
       console.warn('⚠️  stripe_webhook_events table not found. Migrations must be applied first.')
       console.warn('   See: APPLY_MIGRATIONS_GUIDE.md')
+      tableExists = false
+    } else {
+      tableExists = true
     }
   })
 
@@ -45,7 +51,8 @@ describe.skipIf(skipTests)('Webhook Idempotency Integration (T021)', () => {
     await client.from('stripe_webhook_events').delete().eq('event_id', testEventId)
   })
 
-  it.skip('should prevent duplicate webhook processing', async () => {
+  it('should prevent duplicate webhook processing', async ({ skip }) => {
+    if (!tableExists) skip()
     const client = getSupabase()
     // This test requires stripe_webhook_events table
 
@@ -90,7 +97,8 @@ describe.skipIf(skipTests)('Webhook Idempotency Integration (T021)', () => {
     expect(duplicateEvent).toBeNull()
   })
 
-  it.skip('should track processing status', async () => {
+  it('should track processing status', async ({ skip }) => {
+    if (!tableExists) skip()
     const client = getSupabase()
     const eventId = 'evt_test_status_' + Date.now()
 
@@ -135,7 +143,8 @@ describe.skipIf(skipTests)('Webhook Idempotency Integration (T021)', () => {
     await client.from('stripe_webhook_events').delete().eq('event_id', eventId)
   })
 
-  it.skip('should handle failed processing', async () => {
+  it('should handle failed processing', async ({ skip }) => {
+    if (!tableExists) skip()
     const client = getSupabase()
     const eventId = 'evt_test_failed_' + Date.now()
 
@@ -166,7 +175,8 @@ describe.skipIf(skipTests)('Webhook Idempotency Integration (T021)', () => {
     await client.from('stripe_webhook_events').delete().eq('event_id', eventId)
   })
 
-  it.skip('should provide audit trail with payload', async () => {
+  it('should provide audit trail with payload', async ({ skip }) => {
+    if (!tableExists) skip()
     const client = getSupabase()
     const eventId = 'evt_test_audit_' + Date.now()
     const testPayload = {
@@ -226,6 +236,6 @@ describe.skipIf(skipTests)('Webhook Idempotency Integration (T021)', () => {
     expect(requirements).toHaveLength(5)
     console.log('\n✅ Webhook Idempotency Requirements:')
     requirements.forEach((req) => console.log(`   - ${req}`))
-    console.log('\n💡 Enable tests after migrations applied\n')
+    console.log(`\n${tableExists ? '✅ Table available - tests running' : '⚠️ Table not found - tests skipped'}\n`)
   })
 })

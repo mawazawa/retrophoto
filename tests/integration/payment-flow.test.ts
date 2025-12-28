@@ -25,6 +25,9 @@ function getSupabase(): SupabaseClient {
   return supabase
 }
 
+// Track whether tables exist for conditional test execution
+let tablesExist = false
+
 describe.skipIf(skipTests)('Payment Flow Integration', () => {
   const testUserId = '550e8400-e29b-41d4-a716-446655440000' // Valid UUID for testing
 
@@ -40,6 +43,9 @@ describe.skipIf(skipTests)('Payment Flow Integration', () => {
     if (error) {
       console.warn('⚠️  Payment tables not found. Migrations must be applied first.')
       console.warn('   See: lib/supabase/migrations/README_PAYMENT_MIGRATIONS.md')
+      tablesExist = false
+    } else {
+      tablesExist = true
     }
   })
 
@@ -78,9 +84,11 @@ describe.skipIf(skipTests)('Payment Flow Integration', () => {
     expect(expireData?.total_credits_expired).toBeDefined()
   })
 
-  it.skip('should handle refund flow', async () => {
+  it('should handle refund flow', async ({ skip }) => {
+    // Skip if tables don't exist or if we can't create test users
+    if (!tablesExist) skip()
     const client = getSupabase()
-    // Requires migrations to be applied
+    // Requires migrations to be applied and valid test user
 
     // 1. Create transaction
     const { data: transaction } = await client
@@ -132,6 +140,6 @@ describe.skipIf(skipTests)('Payment Flow Integration', () => {
     expect(requiredMigrations).toHaveLength(6)
     console.log('\n📋 Required migrations for payment flow:')
     requiredMigrations.forEach(m => console.log(`   - ${m}`))
-    console.log('\n💡 Apply via Supabase Dashboard → SQL Editor\n')
+    console.log(`\n${tablesExist ? '✅ Tables available - tests running' : '⚠️ Tables not found - some tests skipped'}\n`)
   })
 })

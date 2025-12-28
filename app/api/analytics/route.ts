@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit';
 import { analyticsEventSchema, parseBody, validationErrorResponse } from '@/lib/validation/schemas';
+import { validateCsrf, csrfErrorResponse } from '@/lib/security/csrf';
 import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: NextRequest) {
   try {
+    // CSRF protection - validate request origin
+    if (!validateCsrf(request)) {
+      return NextResponse.json(csrfErrorResponse, { status: 403 });
+    }
+
     const body = await request.json();
 
     // Validate input
