@@ -56,12 +56,25 @@ export async function POST(request: Request) {
       )
     }
 
-    // Database-backed idempotency check
-    const { data: existingEvent } = await supabase
+    // Database-backed idempotency check - use maybeSingle to handle zero rows gracefully
+    const { data: existingEvent, error: checkError } = await supabase
       .from('stripe_webhook_events')
       .select('id, processing_status')
       .eq('event_id', event.id)
-      .single()
+      .maybeSingle()
+
+    // If check fails (not "no rows" but actual DB error), we must fail closed
+    if (checkError) {
+      logger.error('Failed to check webhook idempotency', {
+        eventId: event.id,
+        error: checkError.message,
+        operation: 'stripe_webhook',
+      })
+      return NextResponse.json(
+        { error: 'Database error during idempotency check', error_code: 'DB_ERROR' },
+        { status: 500 }
+      )
+    }
 
     if (existingEvent) {
       logger.debug('Webhook event already processed', {
@@ -88,7 +101,17 @@ export async function POST(request: Request) {
         logger.debug('Webhook event duplicate via DB constraint', { eventId: event.id })
         return NextResponse.json({ received: true, duplicate: true })
       }
-      logger.error('Error logging webhook event', { error: insertError.message })
+      // For any other insert error, fail closed to prevent processing without audit trail
+      logger.error('Failed to log webhook event - failing closed', {
+        eventId: event.id,
+        error: insertError.message,
+        code: insertError.code,
+        operation: 'stripe_webhook',
+      })
+      return NextResponse.json(
+        { error: 'Failed to log webhook event', error_code: 'AUDIT_LOG_FAILED' },
+        { status: 500 }
+      )
     }
 
     // Handle the event
@@ -112,16 +135,24 @@ export async function POST(request: Request) {
         const creditsToAdd = 10
         const userId = session.client_reference_id
 
+        // Safely extract Stripe fields with null checks
+        const paymentIntentId = typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : session.payment_intent?.id || null
+        const customerId = typeof session.customer === 'string'
+          ? session.customer
+          : session.customer?.id || null
+
         // Create payment transaction record
         const { data: transaction, error: txError } = await supabase
           .from('payment_transactions')
           .insert({
             user_id: userId,
             stripe_session_id: session.id,
-            stripe_payment_intent_id: session.payment_intent as string,
-            stripe_customer_id: session.customer as string,
-            amount: session.amount_total!,
-            currency: session.currency!,
+            stripe_payment_intent_id: paymentIntentId,
+            stripe_customer_id: customerId,
+            amount: session.amount_total ?? 0,
+            currency: session.currency ?? 'usd',
             credits_purchased: creditsToAdd,
             status: 'completed',
             metadata: {
@@ -135,6 +166,12 @@ export async function POST(request: Request) {
         if (txError) {
           logger.error('Error creating transaction', { userId, error: txError.message })
           throw new Error(`Failed to create transaction: ${txError.message}`)
+        }
+
+        // Validate transaction was returned (should not be null after successful insert)
+        if (!transaction || !transaction.id) {
+          logger.error('Transaction insert succeeded but no data returned', { userId })
+          throw new Error('Transaction created but ID not returned')
         }
 
         // Add credits with batch tracking
@@ -333,13 +370,23 @@ export async function POST(request: Request) {
     }
 
     // Mark event as successfully processed
-    await supabase
+    const { error: updateError } = await supabase
       .from('stripe_webhook_events')
       .update({
         processing_status: 'success',
         processed_at: new Date().toISOString(),
       })
       .eq('event_id', event.id)
+
+    if (updateError) {
+      // Log but don't fail - processing already completed successfully
+      // Failing here would cause Stripe to retry and potentially duplicate processing
+      logger.warn('Failed to mark webhook as processed', {
+        eventId: event.id,
+        error: updateError.message,
+        operation: 'stripe_webhook',
+      })
+    }
 
     return NextResponse.json({ received: true })
   } catch (error) {

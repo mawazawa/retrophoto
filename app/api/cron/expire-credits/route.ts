@@ -8,10 +8,21 @@ import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
 import { logger } from '@/lib/observability/logger'
 
-// Verify cron secret for security
-const CRON_SECRET = process.env.CRON_SECRET || 'dev-cron-secret'
+// Verify cron secret for security - NO DEFAULT IN PRODUCTION
+const CRON_SECRET = process.env.CRON_SECRET
 
 export async function GET(request: Request) {
+  // CRITICAL: Fail closed if CRON_SECRET is not configured
+  if (!CRON_SECRET) {
+    logger.error('CRON_SECRET not configured - denying access', {
+      operation: 'cron_expire_credits',
+    })
+    return NextResponse.json(
+      { error: 'Cron not configured', error_code: 'CRON_NOT_CONFIGURED' },
+      { status: 503 }
+    )
+  }
+
   // Verify authorization
   const authHeader = request.headers.get('authorization')
   const token = authHeader?.replace('Bearer ', '')

@@ -218,7 +218,8 @@ export async function POST(request: NextRequest) {
     ]);
 
     // Batch database operations in parallel for better performance
-    await Promise.all([
+    // CRITICAL: Must check Supabase errors - they don't reject on failure
+    const [insertResult, updateResult] = await Promise.all([
       // Create restoration result
       supabase.from('restoration_results').insert({
         session_id: session.id,
@@ -233,9 +234,42 @@ export async function POST(request: NextRequest) {
         .from('upload_sessions')
         .update({ status: 'complete' })
         .eq('id', session.id),
-      // Increment quota only if using free tier
-      ...(usePaidCredits ? [] : [incrementQuota(fingerprint)]),
     ]);
+
+    // Check for database errors - these are critical failures
+    if (insertResult.error) {
+      logger.error('Failed to save restoration result', {
+        sessionId: session.id,
+        error: insertResult.error.message,
+        code: insertResult.error.code,
+        operation: 'restoration',
+      });
+      throw new Error(`Failed to save restoration: ${insertResult.error.message}`);
+    }
+
+    if (updateResult.error) {
+      logger.error('Failed to update session status', {
+        sessionId: session.id,
+        error: updateResult.error.message,
+        code: updateResult.error.code,
+        operation: 'restoration',
+      });
+      // Don't throw - result was saved, session status is non-critical
+    }
+
+    // Increment quota only if using free tier (after critical operations)
+    if (!usePaidCredits) {
+      try {
+        await incrementQuota(fingerprint);
+      } catch (quotaErr) {
+        // Log but don't fail - restoration was successful
+        logger.warn('Failed to increment quota', {
+          fingerprint,
+          error: quotaErr instanceof Error ? quotaErr.message : String(quotaErr),
+          operation: 'restoration',
+        });
+      }
+    }
 
     // Track TTM
     const ttmSeconds = (Date.now() - startTime) / 1000;
