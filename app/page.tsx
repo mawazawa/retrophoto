@@ -9,6 +9,7 @@ import { UserMenu } from '@/components/auth/user-menu'
 import { Footer } from '@/components/footer'
 import { BeforeAfterHero } from '@/components/before-after-hero'
 import { Sparkles, Zap, Shield, Clock, Check, ArrowRight } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
 
 function PremiumPricingCard() {
   const [isLoading, setIsLoading] = useState(false)
@@ -35,12 +36,10 @@ function PremiumPricingCard() {
       if (data.url) {
         window.location.href = data.url
       } else {
-        console.error('No checkout URL returned')
-        alert('Failed to create checkout session. Please try again.')
+        toast.error('Checkout failed', 'Failed to create checkout session. Please try again.')
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error)
-      alert('Failed to start checkout. Please try again.')
+      toast.error('Checkout failed', 'Failed to start checkout. Please try again.')
     } finally {
       setIsLoading(false)
     }

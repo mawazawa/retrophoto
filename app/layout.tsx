@@ -5,6 +5,7 @@ import './globals.css'
 import { RegisterServiceWorker } from './register-sw'
 import { WebVitalsReporter } from '@/components/web-vitals'
 import { SkipLink } from '@/components/skip-link'
+import { Toaster } from '@/components/ui/toaster'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -56,6 +57,7 @@ export default function RootLayout({
         <main id="main" tabIndex={-1}>
           {children}
         </main>
+        <Toaster />
         <Analytics />
       </body>
     </html>

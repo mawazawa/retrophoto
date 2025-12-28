@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit'
+import { logger } from '@/lib/observability/logger'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const stripePriceId = process.env.STRIPE_CREDITS_PRICE_ID
@@ -74,7 +75,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ sessionId: session.id, url: session.url })
   } catch (error) {
-    console.error('Error creating checkout session:', error)
+    logger.error('Checkout session creation failed', {
+      error: error instanceof Error ? error.message : String(error),
+      operation: 'checkout',
+    })
     return NextResponse.json(
       { error: 'Failed to create checkout session' },
       { status: 500 }

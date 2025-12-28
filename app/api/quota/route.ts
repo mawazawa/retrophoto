@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit';
+import { logger } from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -62,7 +63,11 @@ export async function GET(request: NextRequest) {
       last_restore_at: data?.last_restore_at || null,
     });
   } catch (error) {
-    console.error('Quota check error:', error);
+    logger.error('Quota check failed', {
+      fingerprint,
+      error: error instanceof Error ? error.message : String(error),
+      operation: 'quota_check',
+    });
     return NextResponse.json(
       {
         error: 'Failed to retrieve quota status. Please try again.',

@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button'
 import { Sparkles } from 'lucide-react'
 import { generateFingerprint } from '@/lib/quota/client-tracker'
+import { toast } from '@/hooks/use-toast'
 
 export function UpgradePrompt({
   open,
@@ -36,12 +37,10 @@ export function UpgradePrompt({
       if (data.url) {
         window.location.href = data.url
       } else {
-        console.error('No checkout URL returned')
-        alert('Failed to create checkout session. Please try again.')
+        toast.error('Checkout failed', 'Failed to create checkout session. Please try again.')
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error)
-      alert('Failed to start checkout. Please try again.')
+      toast.error('Checkout failed', 'Failed to start checkout. Please try again.')
     } finally {
       setIsLoading(false)
     }

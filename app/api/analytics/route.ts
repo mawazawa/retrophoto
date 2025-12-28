@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit';
 import { analyticsEventSchema, parseBody, validationErrorResponse } from '@/lib/validation/schemas';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +37,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Analytics tracking error:', error);
+    logger.error('Analytics tracking error', {
+      error: error instanceof Error ? error.message : String(error),
+      operation: 'analytics',
+    });
     return NextResponse.json({ success: false, error_code: 'ANALYTICS_ERROR' }, { status: 500 });
   }
 }

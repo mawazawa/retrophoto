@@ -6,6 +6,7 @@
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { logger } from '@/lib/observability/logger'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -35,13 +36,16 @@ export async function GET(request: Request) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   try {
-    console.log('[CRON] Starting credit expiration job...')
+    logger.info('Starting credit expiration job', { operation: 'cron_expire_credits' })
 
     // Call expire_credits database function
     const { data, error } = await supabase.rpc('expire_credits')
 
     if (error) {
-      console.error('[CRON] Error expiring credits:', error)
+      logger.error('Error expiring credits', {
+        error: error.message,
+        operation: 'cron_expire_credits',
+      })
       return NextResponse.json(
         {
           error: 'Failed to expire credits',
@@ -52,7 +56,11 @@ export async function GET(request: Request) {
       )
     }
 
-    console.log('[CRON] Credit expiration completed:', data)
+    logger.info('Credit expiration completed', {
+      operation: 'cron_expire_credits',
+      users_affected: data?.users_affected || 0,
+      total_credits_expired: data?.total_credits_expired || 0,
+    })
 
     return NextResponse.json({
       success: true,
@@ -61,7 +69,10 @@ export async function GET(request: Request) {
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
-    console.error('[CRON] Unexpected error:', error)
+    logger.error('Unexpected error in credit expiration', {
+      error: error instanceof Error ? error.message : String(error),
+      operation: 'cron_expire_credits',
+    })
     return NextResponse.json(
       {
         error: 'Internal server error',

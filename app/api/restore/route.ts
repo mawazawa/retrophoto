@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check authentication and credits
-    console.log('[RESTORE] Step 1: Checking authentication and credits');
+    logger.debug('Checking authentication and credits', { fingerprint });
     const supabaseAuth = await createClient();
     const { data: { user } } = await supabaseAuth.auth.getUser();
 
@@ -74,17 +74,17 @@ export async function POST(request: NextRequest) {
 
       if (!creditsError && userCredits && userCredits.credits_balance > 0) {
         usePaidCredits = true;
-        console.log('[RESTORE] User has credits:', userCredits.credits_balance);
+        logger.debug('User has credits', { userId, credits: userCredits.credits_balance });
       } else {
-        console.log('[RESTORE] User has no credits, checking free quota');
+        logger.debug('User has no credits, checking free quota', { userId });
       }
     }
 
     // If no paid credits, check free quota
     if (!usePaidCredits) {
-      console.log('[RESTORE] Checking free quota for', fingerprint);
+      logger.debug('Checking free quota', { fingerprint });
       const hasQuota = await checkQuota(fingerprint);
-      console.log('[RESTORE] Quota check result:', hasQuota);
+      logger.debug('Quota check result', { fingerprint, allowed: hasQuota });
       if (!hasQuota) {
         return NextResponse.json(
           {
@@ -99,14 +99,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload original
-    console.log('[RESTORE] Step 2: Uploading original image');
     logger.uploadStart(fingerprint, file.size, file.type);
     const originalUrl = await uploadOriginalImage(file, fingerprint);
-    console.log('[RESTORE] Original uploaded to:', originalUrl);
+    logger.debug('Original uploaded', { fingerprint, originalUrl });
 
     // Deduct credit if using paid credits (before processing)
     if (usePaidCredits && userId) {
-      console.log('[RESTORE] Deducting credit for user:', userId);
+      logger.debug('Deducting credit', { userId });
 
       // Use cached service role client for RPC call (avoids dynamic import overhead)
       const supabaseService = getServiceRoleClient();
@@ -115,7 +114,7 @@ export async function POST(request: NextRequest) {
         .rpc('deduct_credit', { p_user_id: userId });
 
       if (deductError) {
-        console.error('[RESTORE] Credit deduction error:', deductError);
+        logger.error('Credit deduction failed', { userId, error: deductError.message });
         return NextResponse.json(
           {
             error: 'Failed to deduct credit. Please try again.',
@@ -125,11 +124,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.log('[RESTORE] Credit deducted:', deductResult);
+      logger.debug('Credit deducted', { userId, result: deductResult });
     }
 
     // Create session
-    console.log('[RESTORE] Step 3: Creating session');
+    logger.debug('Creating session', { fingerprint });
     const supabase = await createClient();
     const { data: session, error: sessionError } = await supabase
       .from('upload_sessions')
@@ -144,16 +143,15 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (sessionError) {
-      console.error('[RESTORE] Session creation error:', sessionError);
+      logger.error('Session creation failed', { fingerprint, error: sessionError.message });
       throw sessionError;
     }
-    console.log('[RESTORE] Session created:', session.id);
+    logger.debug('Session created', { sessionId: session.id });
 
     // Process with AI
-    console.log('[RESTORE] Step 4: Starting AI restoration');
     logger.restorationStart(session.id);
     const restoredUrl = await restoreImage(originalUrl);
-    console.log('[RESTORE] AI restoration complete:', restoredUrl);
+    logger.debug('AI restoration complete', { sessionId: session.id });
 
     // Download and validate resolution (T050a)
     const restoredBuffer = await fetch(restoredUrl).then((r) =>
@@ -162,9 +160,11 @@ export async function POST(request: NextRequest) {
     const metadata = await sharp(Buffer.from(restoredBuffer)).metadata();
 
     if (Math.max(metadata.width!, metadata.height!) < 2048) {
-      console.warn(
-        `Restored image below 2048px: ${metadata.width}x${metadata.height}`
-      );
+      logger.warn('Restored image below 2048px', {
+        sessionId: session.id,
+        width: metadata.width,
+        height: metadata.height,
+      });
     }
 
     // Upload restored image to our storage
@@ -184,7 +184,10 @@ export async function POST(request: NextRequest) {
           const ogCardBuffer = Buffer.from(await ogCardResponse.arrayBuffer());
           return await uploadRestoredImage(ogCardBuffer, `${session.id}-og`);
         } catch (error) {
-          console.error('[RESTORE] OG card generation failed:', error);
+          logger.warn('OG card generation failed', {
+            sessionId: session.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
           return ''; // Continue even if OG card fails
         }
       })(),
@@ -194,7 +197,10 @@ export async function POST(request: NextRequest) {
           const gifBuffer = await generateRevealGIF(originalUrl, finalRestoredUrl);
           return await uploadRestoredImage(gifBuffer, `${session.id}-gif`);
         } catch (error) {
-          console.error('[RESTORE] GIF generation failed:', error);
+          logger.warn('GIF generation failed', {
+            sessionId: session.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
           return ''; // Continue even if GIF fails
         }
       })(),
@@ -243,37 +249,15 @@ export async function POST(request: NextRequest) {
       ttm_seconds: ttmSeconds,
     });
   } catch (error) {
-    // Comprehensive error logging
-    console.error('RESTORE API ERROR - Raw:', error);
-    console.error('RESTORE API ERROR - Type:', typeof error);
-    console.error('RESTORE API ERROR - Constructor:', error?.constructor?.name);
-    
-    // Try to extract meaningful error information
-    let errorDetails: any = {};
-    if (error instanceof Error) {
-      errorDetails = {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-      };
-    } else if (typeof error === 'object' && error !== null) {
-      errorDetails = {
-        ...error,
-        stringified: JSON.stringify(error, null, 2),
-      };
-    } else {
-      errorDetails = {
-        value: String(error),
-      };
-    }
-    
-    console.error('RESTORE API ERROR - Parsed:', JSON.stringify(errorDetails, null, 2));
-    
+    // Extract error details for structured logging
     const err = error instanceof Error ? error : new Error(JSON.stringify(error));
-    
+
     logger.error('Restoration failed', {
-      error: err.message,
+      fingerprint,
       operation: 'restoration',
+      error: err.message,
+      errorType: error?.constructor?.name,
+      stack: err.stack,
     });
 
     // Handle retry logic if session was created

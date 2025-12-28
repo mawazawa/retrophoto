@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateOGCard } from '@/lib/share/og-card';
+import { logger } from '@/lib/observability/logger';
 
 export async function GET(
   request: NextRequest,
@@ -28,7 +29,10 @@ export async function GET(
 
     return generateOGCard(session.original_url, result.restored_url);
   } catch (error) {
-    console.error('OG card generation error:', error);
+    logger.error('OG card generation error', {
+      error: error instanceof Error ? error.message : String(error),
+      operation: 'og_card_generation',
+    });
     return new Response('Error generating OG card', { status: 500 });
   }
 }
