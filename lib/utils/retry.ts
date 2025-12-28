@@ -54,12 +54,13 @@ export async function withRetry<T>(
     maxTimeout,
     factor,
     onFailedAttempt: (error) => {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.warn(
         `Retry attempt ${error.attemptNumber} failed. ` +
           `${error.retriesLeft} retries left.`,
-        error.message
+        errorMessage
       )
-      onRetry?.(error, error.attemptNumber)
+      onRetry?.(error as unknown as Error, error.attemptNumber)
     },
   })
 }

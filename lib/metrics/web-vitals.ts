@@ -13,12 +13,12 @@
  * - INP (Interaction to Next Paint) - responsiveness
  */
 
-import { onCLS, onFCP, onFID, onINP, onLCP, onTTFB, Metric } from 'web-vitals'
+import { onCLS, onFCP, onINP, onLCP, onTTFB, Metric } from 'web-vitals'
 
 // Threshold definitions for good/needs improvement/poor
+// FID is deprecated in web-vitals v4, replaced by INP
 const thresholds = {
   LCP: { good: 2500, needsImprovement: 4000 },
-  FID: { good: 100, needsImprovement: 300 },
   CLS: { good: 0.1, needsImprovement: 0.25 },
   FCP: { good: 1800, needsImprovement: 3000 },
   TTFB: { good: 800, needsImprovement: 1800 },
@@ -120,9 +120,9 @@ export function initWebVitals() {
   if (typeof window === 'undefined') return
 
   // Report all core web vitals
+  // Note: FID deprecated in web-vitals v4, replaced by INP
   onCLS(reportMetric)
   onFCP(reportMetric)
-  onFID(reportMetric)
   onINP(reportMetric)
   onLCP(reportMetric)
   onTTFB(reportMetric)

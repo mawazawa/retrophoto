@@ -53,16 +53,19 @@ export async function GET(request: Request) {
       )
     }
 
+    // Type the RPC response
+    const result = data as { users_affected?: number; total_credits_expired?: number } | null
+
     logger.info('Credit expiration completed', {
       operation: 'cron_expire_credits',
-      users_affected: data?.users_affected || 0,
-      total_credits_expired: data?.total_credits_expired || 0,
+      users_affected: result?.users_affected || 0,
+      total_credits_expired: result?.total_credits_expired || 0,
     })
 
     return NextResponse.json({
       success: true,
-      users_affected: data?.users_affected || 0,
-      total_credits_expired: data?.total_credits_expired || 0,
+      users_affected: result?.users_affected || 0,
+      total_credits_expired: result?.total_credits_expired || 0,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {

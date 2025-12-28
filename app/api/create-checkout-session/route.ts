@@ -58,8 +58,7 @@ export async function POST(request: Request) {
 
     // Create Stripe checkout session for credit purchase
     // Supports both authenticated users and guest users (via fingerprint)
-    const session = await stripe.checkout.sessions.create({
-      customer_email: userEmail,
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       client_reference_id: userId,
       line_items: [
         {
@@ -74,10 +73,17 @@ export async function POST(request: Request) {
       cancel_url: `${origin}/app?canceled=true`,
       metadata: {
         userId: userId,
-        isGuest: !user,
-        fingerprint: fingerprint || undefined,
+        isGuest: String(!user),
+        fingerprint: fingerprint || '',
       },
-    })
+    }
+
+    // Add customer email if available
+    if (userEmail) {
+      sessionParams.customer_email = userEmail
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams)
 
     return NextResponse.json({ sessionId: session.id, url: session.url })
   } catch (error) {

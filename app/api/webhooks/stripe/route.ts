@@ -149,12 +149,15 @@ export async function POST(request: Request) {
           throw new Error(`Failed to add credits: ${creditError.message}`)
         }
 
+        // Type the RPC response
+        const creditResult = creditData as { new_balance?: number; batch_id?: string } | null
+
         logger.info('Payment processed successfully', {
           userId,
           transactionId: transaction.id,
           creditsAdded: creditsToAdd,
-          newBalance: creditData?.new_balance,
-          batchId: creditData?.batch_id,
+          newBalance: creditResult?.new_balance,
+          batchId: creditResult?.batch_id,
           operation: 'stripe_webhook',
         })
 
@@ -309,10 +312,13 @@ export async function POST(request: Request) {
             throw new Error(`Failed to process refund: ${refundError.message}`)
           }
 
+          // Type the RPC response
+          const refundResult = refundData as { new_balance?: number; credits_deducted?: number } | null
+
           logger.info('Refund processed successfully', {
             transactionId,
-            newBalance: refundData?.new_balance,
-            creditsDeducted: refundData?.credits_deducted,
+            newBalance: refundResult?.new_balance,
+            creditsDeducted: refundResult?.credits_deducted,
             operation: 'stripe_webhook',
           })
         } else {
@@ -346,8 +352,9 @@ export async function POST(request: Request) {
 
     // Mark event as failed (if event was logged)
     try {
-      if (supabase && event?.id) {
-        await supabase
+      const errorSupabase = getServiceRoleClient()
+      if (errorSupabase && event?.id) {
+        await errorSupabase
           .from('stripe_webhook_events')
           .update({
             processing_status: 'failed',

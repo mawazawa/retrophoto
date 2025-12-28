@@ -34,8 +34,9 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
+    // Cast event_type to allow extended types (web_vital, etc.)
     await supabase.from('analytics_events').insert({
-      event_type,
+      event_type: event_type as any,
       session_id: session_id || null,
       ttm_seconds: ttm_seconds || nsm_seconds || null,
       created_at: new Date().toISOString(),

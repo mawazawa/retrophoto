@@ -191,7 +191,7 @@ export default function AppPage() {
 
           {/* Upload or Progress */}
           {isUploading ? (
-            <RestoreProgress progress={uploadProgress} />
+            <RestoreProgress />
           ) : (
             <>
               <UploadZone onUpload={handleUpload} />
