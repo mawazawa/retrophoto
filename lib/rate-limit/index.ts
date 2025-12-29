@@ -3,6 +3,10 @@
  *
  * Simple in-memory sliding window rate limiter.
  * Can be upgraded to Redis/Upstash for distributed rate limiting.
+ *
+ * NOTE: This is per-process rate limiting. In serverless environments,
+ * each function invocation may have its own store. For production,
+ * consider using Redis/Upstash for distributed rate limiting.
  */
 
 interface RateLimitEntry {
@@ -13,16 +17,31 @@ interface RateLimitEntry {
 // In-memory store (use Redis in production for distributed systems)
 const rateLimitStore = new Map<string, RateLimitEntry>()
 
-// Clean up expired entries periodically
+// Track last cleanup time to avoid excessive cleanup operations
+let lastCleanupTime = Date.now()
 const CLEANUP_INTERVAL = 60 * 1000 // 1 minute
-setInterval(() => {
+
+/**
+ * Lazy cleanup of expired entries (called during rate limit checks)
+ * This avoids setInterval which causes memory leaks in serverless environments
+ */
+function lazyCleanup(): void {
   const now = Date.now()
+
+  // Only cleanup once per minute to avoid performance overhead
+  if (now - lastCleanupTime < CLEANUP_INTERVAL) {
+    return
+  }
+
+  lastCleanupTime = now
+
+  // Remove expired entries
   for (const [key, entry] of rateLimitStore.entries()) {
     if (entry.resetTime < now) {
       rateLimitStore.delete(key)
     }
   }
-}, CLEANUP_INTERVAL)
+}
 
 export interface RateLimitConfig {
   /** Maximum number of requests allowed */
@@ -55,6 +74,9 @@ export function checkRateLimit(
   identifier: string,
   config: RateLimitConfig
 ): RateLimitResult {
+  // Lazy cleanup to prevent memory buildup
+  lazyCleanup()
+
   const key = `${config.prefix}:${identifier}`
   const now = Date.now()
   const windowMs = config.windowSeconds * 1000

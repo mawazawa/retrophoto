@@ -110,7 +110,35 @@ Be precise and analytical. Return ONLY the JSON, no other text.`,
     const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
     console.log('[TRIAGE] Raw response:', responseText);
 
-    const analysisData = JSON.parse(responseText);
+    // SECURITY: Safely parse JSON with error handling
+    let analysisData: any;
+    try {
+      // Try to extract JSON from response (Claude may add markdown or explanation text)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON object found in response');
+      }
+      analysisData = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      console.error('[TRIAGE] Failed to parse response as JSON:', parseError);
+      // Return a safe default analysis that routes to the general-purpose model
+      return {
+        content_type: 'mixed' as ImageContentType,
+        damage_profile: {
+          fading: 0.5,
+          tears: 0.3,
+          stains: 0.3,
+          scratches: 0.3,
+          noise: 0.3,
+          text_detected: false,
+        },
+        resolution: { width: 0, height: 0, short_edge: 0 },
+        faces_detected: 0,
+        recommended_model: 'replicate_swinir', // Default to general-purpose model
+        confidence: 0.5,
+        reasoning: 'Failed to parse AI response, using default restoration model',
+      };
+    }
 
     // Convert to our internal format
     const damageProfile: DamageProfile = {

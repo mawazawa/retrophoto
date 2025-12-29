@@ -3,6 +3,8 @@
  *
  * Implements Origin-based CSRF validation for API routes.
  * This approach validates that requests come from allowed origins.
+ *
+ * SECURITY: Uses strict origin matching to prevent bypasses.
  */
 
 const ALLOWED_ORIGINS = [
@@ -12,27 +14,46 @@ const ALLOWED_ORIGINS = [
 ].filter(Boolean) as string[]
 
 /**
+ * Check if a URL's origin exactly matches an allowed origin
+ */
+function isOriginAllowed(urlOrOrigin: string): boolean {
+  // For full URLs (referer), extract origin
+  try {
+    const url = new URL(urlOrOrigin)
+    const origin = url.origin
+    return ALLOWED_ORIGINS.includes(origin)
+  } catch {
+    // If not a valid URL, treat as origin and check directly
+    return ALLOWED_ORIGINS.includes(urlOrOrigin)
+  }
+}
+
+/**
  * Validate request origin against allowed origins
  * Returns true if the request origin is allowed, false otherwise
+ *
+ * SECURITY NOTES:
+ * - Requests with no origin AND no referer are REJECTED (fail-closed)
+ * - Uses exact origin matching to prevent subdomain bypasses
  */
 export function validateCsrf(request: Request): boolean {
   const origin = request.headers.get('origin')
   const referer = request.headers.get('referer')
 
-  // If no origin header (same-origin request or server-side), check referer
+  // SECURITY: If no origin header, check referer
   if (!origin) {
-    // If no referer either, it might be a server-side request or curl
-    // Allow if there's no origin AND no referer (likely API client)
+    // SECURITY: Reject requests with no origin AND no referer
+    // This prevents CSRF attacks that strip both headers
     if (!referer) {
-      return true
+      return false
     }
 
-    // Check if referer starts with an allowed origin
-    return ALLOWED_ORIGINS.some(allowed => referer.startsWith(allowed))
+    // Check if referer origin is in allowed list (exact match)
+    return isOriginAllowed(referer)
   }
 
-  // Check if origin is in allowed list
-  return ALLOWED_ORIGINS.some(allowed => origin === allowed || origin.startsWith(allowed))
+  // Check if origin is in allowed list (exact match)
+  return isOriginAllowed(origin)
 }
 
 /**
@@ -47,15 +68,23 @@ export function validateCsrfWithDetails(request: Request): {
   const origin = request.headers.get('origin')
   const referer = request.headers.get('referer')
 
+  // SECURITY: Reject requests with no origin AND no referer (fail-closed)
   if (!origin && !referer) {
-    return { valid: true, origin: undefined, referer: undefined }
+    return {
+      valid: false,
+      origin: undefined,
+      referer: undefined,
+      error: 'Missing origin and referer headers',
+    }
   }
 
-  if (origin && ALLOWED_ORIGINS.some(allowed => origin === allowed || origin.startsWith(allowed))) {
+  // Check origin with exact matching
+  if (origin && isOriginAllowed(origin)) {
     return { valid: true, origin, referer: referer || undefined }
   }
 
-  if (referer && ALLOWED_ORIGINS.some(allowed => referer.startsWith(allowed))) {
+  // Check referer with exact matching
+  if (referer && isOriginAllowed(referer)) {
     return { valid: true, origin: origin || undefined, referer }
   }
 
@@ -63,7 +92,7 @@ export function validateCsrfWithDetails(request: Request): {
     valid: false,
     origin: origin || undefined,
     referer: referer || undefined,
-    error: `Request origin '${origin || referer}' is not allowed`
+    error: `Request origin '${origin || referer}' is not allowed`,
   }
 }
 

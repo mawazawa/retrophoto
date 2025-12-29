@@ -23,6 +23,19 @@ interface SendResult {
   error?: string
 }
 
+/**
+ * Escape HTML special characters to prevent XSS
+ * SECURITY: Always use this when interpolating user/external data into HTML
+ */
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 // Check if email service is configured
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = process.env.EMAIL_FROM || 'RetroPhoto <noreply@retrophotoai.com>'
@@ -185,7 +198,7 @@ export async function sendPaymentFailureEmail(
             </div>
             <div class="content">
               <p>We encountered an issue processing your payment.</p>
-              ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+              ${reason ? `<p><strong>Reason:</strong> ${escapeHtml(reason)}</p>` : ''}
               <p>Don't worry - no charges were made to your account. Please try again or use a different payment method.</p>
             </div>
             <div class="cta">
