@@ -27,11 +27,20 @@ export async function generateMetadata({ params }: ResultPageProps): Promise<Met
 
   const supabase = await createClient()
 
-  const { data: result } = await supabase
+  // Use maybeSingle to gracefully handle missing rows instead of throwing
+  const { data: result, error } = await supabase
     .from('restoration_results')
     .select('og_card_url, deep_link')
     .eq('session_id', id)
-    .single()
+    .maybeSingle()
+
+  // If there's an error or no result, return basic metadata
+  if (error || !result) {
+    return {
+      title: 'Result Not Found | RetroPhoto',
+      description: 'The requested result could not be found.',
+    }
+  }
 
   const title = 'Your Restored Photo | RetroPhoto'
   const description = 'See the amazing before and after transformation. Restore your old photos with AI-powered restoration.'
@@ -77,19 +86,21 @@ export default async function ResultPage({ params }: ResultPageProps) {
 
   const supabase = await createClient()
 
-  const { data: session } = await supabase
+  // Use maybeSingle to gracefully handle missing rows
+  const { data: session, error: sessionError } = await supabase
     .from('upload_sessions')
     .select('original_url')
     .eq('id', id)
-    .single()
+    .maybeSingle()
 
-  const { data: result } = await supabase
+  const { data: result, error: resultError } = await supabase
     .from('restoration_results')
     .select('restored_url, deep_link, og_card_url')
     .eq('session_id', id)
-    .single()
+    .maybeSingle()
 
-  if (!session || !result) {
+  // Handle errors and missing data gracefully
+  if (sessionError || resultError || !session || !result) {
     notFound()
   }
 

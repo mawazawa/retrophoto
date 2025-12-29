@@ -1,8 +1,18 @@
+// UUID v4 pattern for validation
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Validate that a string is a valid UUID
+ */
+export function isValidUUID(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
 /**
  * Generates a deep link URL for sharing restoration results
- * @param sessionId - The unique session identifier for the restoration
+ * @param sessionId - The unique session identifier for the restoration (must be valid UUID)
  * @returns A fully-qualified URL to the result page
- * @throws {Error} If sessionId is invalid (empty, null, undefined, or contains path traversal)
+ * @throws {Error} If sessionId is invalid (empty, null, undefined, not UUID, or contains path traversal)
  */
 export function generateDeepLink(sessionId: string, baseUrlOverride?: string): string {
   // Validate input
@@ -17,7 +27,12 @@ export function generateDeepLink(sessionId: string, baseUrlOverride?: string): s
     throw new Error('Session ID cannot be empty or whitespace');
   }
 
-  // Check for path traversal attempts
+  // Validate UUID format for additional security
+  if (!isValidUUID(trimmedId)) {
+    throw new Error('Session ID must be a valid UUID format');
+  }
+
+  // Check for path traversal attempts (extra security layer)
   if (trimmedId.includes('../') || trimmedId.includes('..\\')) {
     throw new Error('Session ID contains invalid path traversal characters');
   }

@@ -115,12 +115,23 @@ export default function LandingPage() {
   const [showUserMenu, setShowUserMenu] = useState(false)
 
   useEffect(() => {
+    let isMounted = true
+
     // Check if user is logged in
     import('@/lib/auth/client').then(({ getUser }) => {
       getUser().then((user) => {
-        setShowUserMenu(!!user)
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setShowUserMenu(!!user)
+        }
       })
+    }).catch(() => {
+      // Silently fail - auth check is non-critical
     })
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   return (

@@ -34,7 +34,18 @@ export async function GET(
       return new Response('Not found', { status: 404 });
     }
 
-    return generateOGCard(session.original_url, result.restored_url);
+    // Generate OG card and add caching headers
+    const ogResponse = await generateOGCard(session.original_url, result.restored_url);
+
+    // Add cache headers for CDN and browser caching
+    // Cache for 1 hour with stale-while-revalidate of 24 hours
+    const headers = new Headers(ogResponse.headers);
+    headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+
+    return new Response(ogResponse.body, {
+      status: ogResponse.status,
+      headers,
+    });
   } catch (error) {
     logger.error('OG card generation error', {
       error: error instanceof Error ? error.message : String(error),

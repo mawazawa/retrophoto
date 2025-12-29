@@ -58,10 +58,16 @@ async function reportMetric(metric: Metric) {
 
   // Use sendBeacon for reliability (works even on page unload)
   if (navigator.sendBeacon) {
-    navigator.sendBeacon('/api/analytics', JSON.stringify({
-      event_type: 'web_vital',
-      ...body,
-    }))
+    try {
+      // Wrap in try-catch to handle JSON serialization errors
+      const payload = JSON.stringify({
+        event_type: 'web_vital',
+        ...body,
+      })
+      navigator.sendBeacon('/api/analytics', payload)
+    } catch {
+      // Silently fail - analytics shouldn't break the app
+    }
   } else {
     // Fallback to fetch
     fetch('/api/analytics', {

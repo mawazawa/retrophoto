@@ -26,15 +26,28 @@ export default function AppPage() {
   const paymentCanceled = searchParams?.get('canceled') === 'true'
   const [showPaymentMessage, setShowPaymentMessage] = useState(paymentSuccess || paymentCanceled)
 
+  // Check if user is logged in (separate effect with proper cleanup)
   useEffect(() => {
-    // Check if user is logged in
+    let isMounted = true
+
     import('@/lib/auth/client').then(({ getUser }) => {
       getUser().then((user) => {
-        setShowUserMenu(!!user)
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setShowUserMenu(!!user)
+        }
       })
+    }).catch(() => {
+      // Silently fail - auth check is non-critical
     })
 
-    // Auto-hide payment messages after 5 seconds
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Auto-hide payment messages after 5 seconds
+  useEffect(() => {
     if (showPaymentMessage) {
       const timer = setTimeout(() => {
         setShowPaymentMessage(false)
