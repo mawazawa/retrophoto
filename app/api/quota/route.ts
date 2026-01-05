@@ -1,31 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getQuotaDetails } from '@/lib/dal';
 import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit';
-import { logger } from '@/lib/observability/logger';
+import { withErrorBoundary } from '@/lib/api/error-boundary';
+import { badRequest } from '@/lib/api/errors';
 
-export async function GET(request: NextRequest) {
+export const GET = withErrorBoundary(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const fingerprint = searchParams.get('fingerprint');
 
   if (!fingerprint) {
-    return NextResponse.json(
-      {
-        error: 'Missing fingerprint parameter.',
-        error_code: 'MISSING_FINGERPRINT',
-      },
-      { status: 400 }
-    );
+    throw badRequest('Missing fingerprint parameter.', 'MISSING_FINGERPRINT');
   }
 
   // Validate fingerprint format (minimum 20 characters for browser fingerprints)
   if (fingerprint.length < 20) {
-    return NextResponse.json(
-      {
-        error: 'Invalid fingerprint format.',
-        error_code: 'INVALID_FINGERPRINT',
-      },
-      { status: 400 }
-    );
+    throw badRequest('Invalid fingerprint format.', 'INVALID_FINGERPRINT');
   }
 
   // Check rate limit
@@ -37,43 +26,14 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  try {
-    const supabase = await createClient();
+  // Get quota details via DAL
+  const quotaInfo = await getQuotaDetails(fingerprint);
 
-    const { data, error } = await supabase
-      .from('user_quota')
-      .select('restore_count, last_restore_at')
-      .eq('fingerprint', fingerprint)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      // Not found is ok
-      throw error;
-    }
-
-    const restoreCount = data?.restore_count || 0;
-    const remaining = Math.max(0, 1 - restoreCount);
-    const requiresUpgrade = remaining === 0;
-
-    return NextResponse.json({
-      remaining,
-      limit: 1,
-      requires_upgrade: requiresUpgrade,
-      ...(requiresUpgrade && { upgrade_url: '/upgrade' }),
-      last_restore_at: data?.last_restore_at || null,
-    });
-  } catch (error) {
-    logger.error('Quota check failed', {
-      fingerprint,
-      error: error instanceof Error ? error.message : String(error),
-      operation: 'quota_check',
-    });
-    return NextResponse.json(
-      {
-        error: 'Failed to retrieve quota status. Please try again.',
-        error_code: 'DATABASE_ERROR',
-      },
-      { status: 500 }
-    );
-  }
-}
+  return NextResponse.json({
+    remaining: quotaInfo.remaining,
+    limit: quotaInfo.limit_value,
+    requires_upgrade: quotaInfo.requires_upgrade,
+    ...(quotaInfo.requires_upgrade && { upgrade_url: quotaInfo.upgrade_url }),
+    last_restore_at: quotaInfo.last_restore_at,
+  });
+});

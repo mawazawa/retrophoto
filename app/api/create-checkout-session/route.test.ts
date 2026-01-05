@@ -8,6 +8,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import { createMockSupabaseClient } from '@/tests/mocks/supabase'
 
 // Mock Stripe module
 vi.mock('stripe', () => {
@@ -32,6 +33,7 @@ vi.mock('@/lib/supabase/server', () => ({
 
 // Import after mocks
 import { POST } from './route'
+import { createClient } from '@/lib/supabase/server'
 
 describe('POST /api/create-checkout-session', () => {
   beforeEach(() => {
@@ -40,8 +42,7 @@ describe('POST /api/create-checkout-session', () => {
 
   it('should return 200 with sessionId and url for authenticated user', async () => {
     // Arrange: Mock authenticated user
-    const mockCreateClient = (await import('@/lib/supabase/server')).createClient as any
-    mockCreateClient.mockResolvedValue({
+    const mockClient = createMockSupabaseClient({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: {
@@ -53,6 +54,7 @@ describe('POST /api/create-checkout-session', () => {
         })
       }
     })
+    vi.mocked(createClient).mockResolvedValue(mockClient as any)
 
     const formData = new FormData()
     formData.append('fingerprint', 'test-fingerprint-optional')
@@ -83,8 +85,7 @@ describe('POST /api/create-checkout-session', () => {
 
   it('should return 403 with error_code CSRF_ERROR for request without valid Origin header', async () => {
     // Arrange: Request without Origin/Referer headers (CSRF protection)
-    const mockCreateClient = (await import('@/lib/supabase/server')).createClient as any
-    mockCreateClient.mockResolvedValue({
+    const mockClient = createMockSupabaseClient({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: {
@@ -93,6 +94,7 @@ describe('POST /api/create-checkout-session', () => {
         })
       }
     })
+    vi.mocked(createClient).mockResolvedValue(mockClient as any)
 
     const request = new NextRequest('http://localhost:3000/api/create-checkout-session', {
       method: 'POST'
@@ -105,16 +107,15 @@ describe('POST /api/create-checkout-session', () => {
 
     // Assert: CSRF protection rejects request before auth check
     expect(response.status).toBe(403)
-    expect(data).toEqual({
+    expect(data).toMatchObject({
       error: 'CSRF validation failed',
-      error_code: 'CSRF_ERROR'
+      error_code: 'CSRF_VALIDATION_FAILED'
     })
   })
 
   it('should return 400 with error_code MISSING_IDENTIFIER for unauthenticated request without fingerprint', async () => {
     // Arrange: Mock unauthenticated user, no fingerprint provided
-    const mockCreateClient = (await import('@/lib/supabase/server')).createClient as any
-    mockCreateClient.mockResolvedValue({
+    const mockClient = createMockSupabaseClient({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: {
@@ -123,6 +124,7 @@ describe('POST /api/create-checkout-session', () => {
         })
       }
     })
+    vi.mocked(createClient).mockResolvedValue(mockClient as any)
 
     const formData = new FormData()
     // No fingerprint in form data
@@ -141,7 +143,7 @@ describe('POST /api/create-checkout-session', () => {
 
     // Assert: Missing both user and fingerprint
     expect(response.status).toBe(400)
-    expect(data).toEqual({
+    expect(data).toMatchObject({
       error: 'Missing user ID or fingerprint',
       error_code: 'MISSING_IDENTIFIER'
     })

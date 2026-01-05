@@ -17,15 +17,17 @@ import { trackTTMAlert, trackRestorationFailure, trackValidationError } from '@/
 import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit';
 import { validateCsrf, csrfErrorResponse } from '@/lib/security/csrf';
 import sharp from 'sharp';
+import { withErrorBoundary } from '@/lib/api/error-boundary';
+import { badRequest, forbidden, tooManyRequests, internalError } from '@/lib/api/errors';
 
-export async function POST(request: NextRequest) {
+export const POST = withErrorBoundary(async (request: NextRequest) => {
   const startTime = Date.now();
   let fingerprint: string | undefined;
 
   try {
     // CSRF protection - validate request origin
     if (!validateCsrf(request)) {
-      return NextResponse.json(csrfErrorResponse, { status: 403 });
+      throw forbidden('CSRF validation failed', 'CSRF_VALIDATION_FAILED');
     }
 
     const formData = await request.formData();
@@ -33,13 +35,7 @@ export async function POST(request: NextRequest) {
     fingerprint = formData.get('fingerprint') as string;
 
     if (!file || !fingerprint) {
-      return NextResponse.json(
-        {
-          error: 'Missing file or fingerprint',
-          error_code: 'MISSING_FINGERPRINT',
-        },
-        { status: 400 }
-      );
+      throw badRequest('Missing file or fingerprint', 'MISSING_FINGERPRINT');
     }
 
     // Check rate limit
@@ -55,10 +51,7 @@ export async function POST(request: NextRequest) {
     const validation = validateImageFile(file);
     if (!validation.valid) {
       trackValidationError(validation.error || 'Invalid file', file.size, file.type);
-      return NextResponse.json(
-        { error: validation.error, error_code: validation.errorCode || 'INVALID_FILE_TYPE' },
-        { status: 400 }
-      );
+      throw badRequest(validation.error || 'Invalid file', validation.errorCode || 'INVALID_FILE_TYPE');
     }
 
     // Check authentication and credits
@@ -92,14 +85,9 @@ export async function POST(request: NextRequest) {
       const hasQuota = await checkQuota(fingerprint);
       logger.debug('Quota check result', { fingerprint, allowed: hasQuota });
       if (!hasQuota) {
-        return NextResponse.json(
-          {
-            error:
-              'Free restore limit reached. Purchase credits for unlimited restorations.',
-            error_code: 'QUOTA_EXCEEDED',
-            upgrade_url: '/pricing',
-          },
-          { status: 429 }
+        throw tooManyRequests(
+          'Free restore limit reached. Purchase credits for unlimited restorations.',
+          'QUOTA_EXCEEDED'
         );
       }
     }
@@ -121,13 +109,7 @@ export async function POST(request: NextRequest) {
 
       if (deductError) {
         logger.error('Credit deduction failed', { userId, error: deductError.message });
-        return NextResponse.json(
-          {
-            error: 'Failed to deduct credit. Please try again.',
-            error_code: 'CREDIT_DEDUCTION_FAILED',
-          },
-          { status: 500 }
-        );
+        throw internalError('Failed to deduct credit. Please try again.', 'CREDIT_DEDUCTION_FAILED');
       }
 
       logger.debug('Credit deducted', { userId, result: deductResult });
@@ -374,12 +356,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(
-      {
-        error: 'Restoration failed. Please try again or contact support.',
-        error_code: 'AI_MODEL_ERROR',
-      },
-      { status: 500 }
-    );
+    // After handling retry logic, throw error for the error boundary to handle
+    throw internalError('Restoration failed. Please try again or contact support.', 'AI_MODEL_ERROR');
   }
-}
+});

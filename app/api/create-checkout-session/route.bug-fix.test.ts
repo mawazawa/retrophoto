@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from './route'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { createMockSupabaseClient } from '@/tests/mocks/supabase'
 
 // Mock dependencies
 vi.mock('@/lib/supabase/server', () => ({
@@ -21,6 +22,9 @@ vi.mock('stripe', () => {
     }
   }
 })
+
+// Import after mocks
+import { createClient } from '@/lib/supabase/server'
 
 // Mock environment variables
 process.env.STRIPE_SECRET_KEY = 'sk_test_mock'
@@ -46,10 +50,7 @@ describe('Bug Fix: Guest Checkout Support', () => {
    */
 
   it('should reject requests without user ID or fingerprint', async () => {
-    const { createClient } = await import('@/lib/supabase/server')
-    const mockCreateClient = createClient as any
-
-    mockCreateClient.mockResolvedValue({
+    const mockClient = createMockSupabaseClient({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: null },
@@ -57,11 +58,12 @@ describe('Bug Fix: Guest Checkout Support', () => {
         }),
       },
     })
+    vi.mocked(createClient).mockResolvedValue(mockClient as any)
 
     const formData = new FormData()
     // No fingerprint provided
 
-    const request = new Request('http://localhost:3000/api/create-checkout-session', {
+    const request = new NextRequest('http://localhost:3000/api/create-checkout-session', {
       method: 'POST',
       headers: {
         'origin': 'http://localhost:3000'
@@ -77,11 +79,7 @@ describe('Bug Fix: Guest Checkout Support', () => {
   })
 
   it('should allow guest users to checkout with fingerprint (BUG FIX)', async () => {
-    const { createClient } = await import('@/lib/supabase/server')
-    const Stripe = (await import('stripe')).default
-    const mockCreateClient = createClient as any
-
-    mockCreateClient.mockResolvedValue({
+    const mockClient = createMockSupabaseClient({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: null }, // No authenticated user
@@ -89,12 +87,13 @@ describe('Bug Fix: Guest Checkout Support', () => {
         }),
       },
     })
+    vi.mocked(createClient).mockResolvedValue(mockClient as any)
 
     const fingerprint = 'guest-fingerprint-12345678901234567890'
     const formData = new FormData()
     formData.append('fingerprint', fingerprint)
 
-    const request = new Request('http://localhost:3000/api/create-checkout-session', {
+    const request = new NextRequest('http://localhost:3000/api/create-checkout-session', {
       method: 'POST',
       headers: {
         'origin': 'http://localhost:3000'
@@ -112,15 +111,12 @@ describe('Bug Fix: Guest Checkout Support', () => {
   })
 
   it('should allow authenticated users to checkout with user.id', async () => {
-    const { createClient } = await import('@/lib/supabase/server')
-    const mockCreateClient = createClient as any
-
     const mockUser = {
       id: 'user-uuid-123',
       email: 'user@example.com',
     }
 
-    mockCreateClient.mockResolvedValue({
+    const mockClient = createMockSupabaseClient({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: mockUser },
@@ -128,11 +124,12 @@ describe('Bug Fix: Guest Checkout Support', () => {
         }),
       },
     })
+    vi.mocked(createClient).mockResolvedValue(mockClient as any)
 
     const formData = new FormData()
     formData.append('fingerprint', 'some-fingerprint') // Provided but will use user.id
 
-    const request = new Request('http://localhost:3000/api/create-checkout-session', {
+    const request = new NextRequest('http://localhost:3000/api/create-checkout-session', {
       method: 'POST',
       headers: {
         'origin': 'http://localhost:3000'
@@ -193,15 +190,12 @@ describe('Bug Fix: Guest Checkout Support', () => {
   })
 
   it('should handle the case where fingerprint is provided but user is authenticated', async () => {
-    const { createClient } = await import('@/lib/supabase/server')
-    const mockCreateClient = createClient as any
-
     const mockUser = {
       id: 'user-uuid-456',
       email: 'authenticated@example.com',
     }
 
-    mockCreateClient.mockResolvedValue({
+    const mockClient = createMockSupabaseClient({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: mockUser },
@@ -209,11 +203,12 @@ describe('Bug Fix: Guest Checkout Support', () => {
         }),
       },
     })
+    vi.mocked(createClient).mockResolvedValue(mockClient as any)
 
     const formData = new FormData()
     formData.append('fingerprint', 'guest-fingerprint-xyz')
 
-    const request = new Request('http://localhost:3000/api/create-checkout-session', {
+    const request = new NextRequest('http://localhost:3000/api/create-checkout-session', {
       method: 'POST',
       headers: {
         'origin': 'http://localhost:3000'
