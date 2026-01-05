@@ -1,14 +1,13 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/react'
 import './globals.css'
 import { RegisterServiceWorker } from './register-sw'
+import { WebVitalsReporter } from '@/components/web-vitals'
+import { SkipLink } from '@/components/skip-link'
+import { Toaster } from '@/components/ui/toaster'
 
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap', // T085: Optimize font loading
-  preload: true,
-})
+// System font stack - no network dependency, works everywhere
+// Note: For production, Inter can be served via CDN in globals.css
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -47,9 +46,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={inter.className}>
+      <body className="font-sans antialiased">
+        <SkipLink />
         <RegisterServiceWorker />
-        {children}
+        <WebVitalsReporter />
+        <main id="main" tabIndex={-1}>
+          {children}
+        </main>
+        <Toaster />
         <Analytics />
       </body>
     </html>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, X } from 'lucide-react'
 import { cn, validateImageFile } from '@/lib/utils'
@@ -13,6 +13,37 @@ export function UploadZone({
 }) {
   const [error, setError] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const objectUrlRef = useRef<string | null>(null)
+
+  // Cleanup object URL when file changes or component unmounts
+  useEffect(() => {
+    if (file) {
+      // Revoke previous URL if exists
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+      }
+      // Create new URL
+      const url = URL.createObjectURL(file)
+      objectUrlRef.current = url
+      setPreviewUrl(url)
+    } else {
+      // Clear preview when file is removed
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = null
+      }
+      setPreviewUrl(null)
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = null
+      }
+    }
+  }, [file])
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setError(null)
@@ -79,7 +110,7 @@ export function UploadZone({
           <div className="space-y-4">
             <div className="relative inline-block">
               <img
-                src={URL.createObjectURL(file)}
+                src={previewUrl || ''}
                 alt="Preview"
                 className="max-h-64 rounded-lg"
               />

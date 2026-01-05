@@ -71,6 +71,16 @@ export async function getQueue(): Promise<QueuedUpload[]> {
 }
 
 /**
+ * Wrap IDBRequest in a Promise
+ */
+function wrapRequest<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+/**
  * Save queue to IndexedDB
  */
 async function saveQueue(queue: QueuedUpload[]): Promise<void> {
@@ -79,12 +89,18 @@ async function saveQueue(queue: QueuedUpload[]): Promise<void> {
   const store = transaction.objectStore('uploads')
 
   // Clear existing
-  await store.clear()
+  await wrapRequest(store.clear())
 
   // Add all items
   for (const item of queue) {
-    await store.add(item)
+    await wrapRequest(store.add(item))
   }
+
+  // Wait for transaction to complete
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error)
+  })
 }
 
 /**
@@ -94,7 +110,13 @@ export async function removeFromQueue(id: string): Promise<void> {
   const db = await openDB()
   const transaction = db.transaction('uploads', 'readwrite')
   const store = transaction.objectStore('uploads')
-  await store.delete(id)
+  await wrapRequest(store.delete(id))
+
+  // Wait for transaction to complete
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error)
+  })
 }
 
 /**

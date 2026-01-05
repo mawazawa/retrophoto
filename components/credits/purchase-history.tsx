@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow } from 'date-fns'
 import { Receipt, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/hooks/use-toast'
 
 interface Transaction {
   id: string
@@ -49,8 +50,9 @@ export function PurchaseHistory({ userId, className }: PurchaseHistoryProps) {
       setTransactions(data || [])
       setError(null)
     } catch (err) {
-      console.error('Error fetching purchase history:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load history')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load history'
+      setError(errorMessage)
+      toast.error('Could not load history', 'Failed to fetch purchase history. Please try again.')
     } finally {
       setIsLoading(false)
     }

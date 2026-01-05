@@ -5,15 +5,24 @@
  */
 
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getServiceRoleClient } from '@/lib/supabase/service-role'
+import { logger } from '@/lib/observability/logger'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-// Verify cron secret for security
-const CRON_SECRET = process.env.CRON_SECRET || 'dev-cron-secret'
+// Verify cron secret for security - NO DEFAULT IN PRODUCTION
+const CRON_SECRET = process.env.CRON_SECRET
 
 export async function GET(request: Request) {
+  // CRITICAL: Fail closed if CRON_SECRET is not configured
+  if (!CRON_SECRET) {
+    logger.error('CRON_SECRET not configured - denying access', {
+      operation: 'cron_expire_credits',
+    })
+    return NextResponse.json(
+      { error: 'Cron not configured', error_code: 'CRON_NOT_CONFIGURED' },
+      { status: 503 }
+    )
+  }
+
   // Verify authorization
   const authHeader = request.headers.get('authorization')
   const token = authHeader?.replace('Bearer ', '')
@@ -25,23 +34,26 @@ export async function GET(request: Request) {
     )
   }
 
-  if (!supabaseUrl || !supabaseServiceKey) {
+  // Use cached service role client
+  const supabase = getServiceRoleClient()
+  if (!supabase) {
     return NextResponse.json(
       { error: 'Supabase not configured', error_code: 'SUPABASE_UNAVAILABLE' },
       { status: 503 }
     )
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
   try {
-    console.log('[CRON] Starting credit expiration job...')
+    logger.info('Starting credit expiration job', { operation: 'cron_expire_credits' })
 
     // Call expire_credits database function
     const { data, error } = await supabase.rpc('expire_credits')
 
     if (error) {
-      console.error('[CRON] Error expiring credits:', error)
+      logger.error('Error expiring credits', {
+        error: error.message,
+        operation: 'cron_expire_credits',
+      })
       return NextResponse.json(
         {
           error: 'Failed to expire credits',
@@ -52,16 +64,26 @@ export async function GET(request: Request) {
       )
     }
 
-    console.log('[CRON] Credit expiration completed:', data)
+    // Type the RPC response
+    const result = data as { users_affected?: number; total_credits_expired?: number } | null
+
+    logger.info('Credit expiration completed', {
+      operation: 'cron_expire_credits',
+      users_affected: result?.users_affected || 0,
+      total_credits_expired: result?.total_credits_expired || 0,
+    })
 
     return NextResponse.json({
       success: true,
-      users_affected: data?.users_affected || 0,
-      total_credits_expired: data?.total_credits_expired || 0,
+      users_affected: result?.users_affected || 0,
+      total_credits_expired: result?.total_credits_expired || 0,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
-    console.error('[CRON] Unexpected error:', error)
+    logger.error('Unexpected error in credit expiration', {
+      error: error instanceof Error ? error.message : String(error),
+      operation: 'cron_expire_credits',
+    })
     return NextResponse.json(
       {
         error: 'Internal server error',

@@ -1,13 +1,27 @@
 import Replicate from 'replicate';
 import pRetry from 'p-retry';
 
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN!,
-});
+// Lazy initialization to avoid crash at import time
+let replicateClient: Replicate | null = null;
+
+function getReplicateClient(): Replicate {
+  if (replicateClient) return replicateClient;
+
+  const token = process.env.REPLICATE_API_TOKEN;
+  if (!token) {
+    throw new Error(
+      'Missing REPLICATE_API_TOKEN environment variable. Image restoration is unavailable.'
+    );
+  }
+
+  replicateClient = new Replicate({ auth: token });
+  return replicateClient;
+}
 
 export async function restoreImage(imageUrl: string): Promise<string> {
   const run = async () => {
     try {
+      const replicate = getReplicateClient();
       console.log('[REPLICATE] Starting restoration for:', imageUrl);
       
       const output = await replicate.run(

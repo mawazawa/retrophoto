@@ -1,11 +1,37 @@
 import { createClient } from '@/lib/supabase/server';
 
+/**
+ * Sanitize filename to prevent path traversal and special character issues
+ * Removes all non-alphanumeric characters except dots, hyphens, underscores
+ */
+function sanitizeFilename(filename: string): string {
+  // Get extension if present
+  const lastDot = filename.lastIndexOf('.');
+  const extension = lastDot > 0 ? filename.slice(lastDot).toLowerCase() : '';
+  const baseName = lastDot > 0 ? filename.slice(0, lastDot) : filename;
+
+  // Remove any path components and sanitize
+  const sanitized = baseName
+    .replace(/^.*[\\/]/, '') // Remove any path prefix
+    .replace(/[^a-zA-Z0-9_-]/g, '_') // Replace special chars with underscore
+    .slice(0, 50); // Limit length
+
+  // Only allow safe image extensions
+  const safeExtension = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(extension)
+    ? extension
+    : '.jpg';
+
+  return sanitized || 'upload' + safeExtension;
+}
+
 export async function uploadOriginalImage(
   file: File,
   fingerprint: string
 ): Promise<string> {
   const supabase = await createClient();
-  const fileName = `${fingerprint}-${Date.now()}-${file.name}`;
+  // Sanitize the filename to prevent injection
+  const safeFilename = sanitizeFilename(file.name);
+  const fileName = `${fingerprint}-${Date.now()}-${safeFilename}`;
   const filePath = `originals/${fileName}`;
 
   const { data, error } = await supabase.storage

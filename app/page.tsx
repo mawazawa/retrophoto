@@ -8,7 +8,8 @@ import { SignInButton } from '@/components/auth/sign-in-button'
 import { UserMenu } from '@/components/auth/user-menu'
 import { Footer } from '@/components/footer'
 import { BeforeAfterHero } from '@/components/before-after-hero'
-import { Sparkles, Zap, Shield, Clock, Check, ArrowRight } from 'lucide-react'
+import { Sparkles, Zap, Shield, Clock, Check, ArrowRight, Loader2 } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
 
 function PremiumPricingCard() {
   const [isLoading, setIsLoading] = useState(false)
@@ -35,12 +36,10 @@ function PremiumPricingCard() {
       if (data.url) {
         window.location.href = data.url
       } else {
-        console.error('No checkout URL returned')
-        alert('Failed to create checkout session. Please try again.')
+        toast.error('Checkout failed', 'Failed to create checkout session. Please try again.')
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error)
-      alert('Failed to start checkout. Please try again.')
+      toast.error('Checkout failed', 'Failed to start checkout. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -95,7 +94,14 @@ function PremiumPricingCard() {
       </ul>
 
       <Button className="w-full" onClick={handleUpgrade} disabled={isLoading}>
-        {isLoading ? 'Loading...' : 'Buy 10 Credits'}
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Loading...
+          </>
+        ) : (
+          'Buy 10 Credits'
+        )}
       </Button>
 
       <p className="text-xs text-center text-muted-foreground mt-4">
@@ -109,12 +115,23 @@ export default function LandingPage() {
   const [showUserMenu, setShowUserMenu] = useState(false)
 
   useEffect(() => {
+    let isMounted = true
+
     // Check if user is logged in
     import('@/lib/auth/client').then(({ getUser }) => {
       getUser().then((user) => {
-        setShowUserMenu(!!user)
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setShowUserMenu(!!user)
+        }
       })
+    }).catch(() => {
+      // Silently fail - auth check is non-critical
     })
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   return (
@@ -129,6 +146,7 @@ export default function LandingPage() {
               width={96}
               height={96}
               className="rounded-lg"
+              priority
             />
             <span className="font-bold text-2xl">RetroPhoto</span>
           </Link>

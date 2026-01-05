@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit'
+import { validateCsrf, csrfErrorResponse } from '@/lib/security/csrf'
+import { logger } from '@/lib/observability/logger'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const stripePriceId = process.env.STRIPE_CREDITS_PRICE_ID
@@ -11,6 +14,11 @@ const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
 
 export async function POST(request: Request) {
   try {
+    // CSRF protection - validate request origin
+    if (!validateCsrf(request)) {
+      return NextResponse.json(csrfErrorResponse, { status: 403 })
+    }
+
     if (!stripe || !stripePriceId) {
       return NextResponse.json(
         { error: 'Stripe is not configured', error_code: 'STRIPE_UNAVAILABLE' },
@@ -36,13 +44,21 @@ export async function POST(request: Request) {
       )
     }
 
+    // Check rate limit
+    const rateLimitResult = checkRateLimit(userId, rateLimitConfigs.checkout)
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(rateLimitedResponse(rateLimitResult), {
+        status: 429,
+        headers: getRateLimitHeaders(rateLimitResult),
+      })
+    }
+
     const { origin } = new URL(request.url)
     const priceId = stripePriceId
 
     // Create Stripe checkout session for credit purchase
     // Supports both authenticated users and guest users (via fingerprint)
-    const session = await stripe.checkout.sessions.create({
-      customer_email: userEmail,
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       client_reference_id: userId,
       line_items: [
         {
@@ -57,16 +73,26 @@ export async function POST(request: Request) {
       cancel_url: `${origin}/app?canceled=true`,
       metadata: {
         userId: userId,
-        isGuest: !user,
-        fingerprint: fingerprint || undefined,
+        isGuest: String(!user),
+        fingerprint: fingerprint || '',
       },
-    })
+    }
+
+    // Add customer email if available
+    if (userEmail) {
+      sessionParams.customer_email = userEmail
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams)
 
     return NextResponse.json({ sessionId: session.id, url: session.url })
   } catch (error) {
-    console.error('Error creating checkout session:', error)
+    logger.error('Checkout session creation failed', {
+      error: error instanceof Error ? error.message : String(error),
+      operation: 'checkout',
+    })
     return NextResponse.json(
-      { error: 'Failed to create checkout session' },
+      { error: 'Failed to create checkout session', error_code: 'CHECKOUT_FAILED' },
       { status: 500 }
     )
   }

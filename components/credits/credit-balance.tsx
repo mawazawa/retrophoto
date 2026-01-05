@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Coins } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
 
 interface CreditBalanceProps {
   className?: string
+  showErrorToast?: boolean
 }
 
-export function CreditBalance({ className }: CreditBalanceProps) {
+export function CreditBalance({ className, showErrorToast = false }: CreditBalanceProps) {
   const [balance, setBalance] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -25,22 +27,27 @@ export function CreditBalance({ className }: CreditBalanceProps) {
           return
         }
 
-        // Query user_credits table (use 'available_credits' per schema)
+        // Query user_credits table
         const { data, error } = await supabase
           .from('user_credits')
-          .select('available_credits')
+          .select('credits_balance')
           .eq('user_id', user.id)
           .single()
 
         if (error) {
-          console.error('Error fetching credit balance:', error)
           // User might not have credits row yet (first purchase creates it)
+          // Don't show error for PGRST116 (row not found)
+          if (error.code !== 'PGRST116' && showErrorToast) {
+            toast.error('Could not load balance', 'Failed to fetch credit balance. Please refresh.')
+          }
           setBalance(0)
         } else {
-          setBalance(data?.available_credits ?? 0)
+          setBalance(data?.credits_balance ?? 0)
         }
       } catch (error) {
-        console.error('Error:', error)
+        if (showErrorToast) {
+          toast.error('Could not load balance', 'An unexpected error occurred.')
+        }
         setBalance(0)
       } finally {
         setIsLoading(false)
@@ -48,7 +55,7 @@ export function CreditBalance({ className }: CreditBalanceProps) {
     }
 
     fetchBalance()
-  }, [])
+  }, [showErrorToast])
 
   if (isLoading) {
     return (

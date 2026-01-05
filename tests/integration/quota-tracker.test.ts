@@ -4,16 +4,17 @@
  * These tests require a Supabase database connection.
  * Run with: npm run test:integration
  *
- * Note: These tests are currently disabled as they require database setup.
- * Enable after deploying database migrations.
+ * Note: These tests require SUPABASE_URL and SUPABASE_KEY env vars.
+ * They will be skipped if the database is not configured.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { checkQuota, incrementQuota } from '@/lib/quota/tracker';
-import { generateFingerprint } from '@/lib/quota/client-tracker';
 
-// Skip these tests until database is deployed
-describe.skip('Quota Tracker Integration', () => {
+// Skip tests if Supabase is not configured
+const skipTests = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+describe.skipIf(skipTests)('Quota Tracker Integration', () => {
   let testFingerprint: string;
 
   beforeAll(async () => {
@@ -21,13 +22,8 @@ describe.skip('Quota Tracker Integration', () => {
     testFingerprint = `test-${Date.now()}-${Math.random()}`;
   });
 
-  describe('Fingerprint Generation', () => {
-    it('should generate a fingerprint', async () => {
-      const fingerprint = await generateFingerprint();
-      expect(fingerprint).toBeTruthy();
-      expect(typeof fingerprint).toBe('string');
-    });
-  });
+  // Note: Fingerprint generation is client-side only (uses FingerprintJS browser library)
+  // and is tested separately in unit tests with proper mocking
 
   describe('Quota Checking', () => {
     it('should return true for new fingerprint', async () => {

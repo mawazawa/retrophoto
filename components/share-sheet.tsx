@@ -1,19 +1,31 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Share2, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/hooks/use-toast'
+import { logger } from '@/lib/observability/logger'
 
 export function ShareSheet({
   deepLink,
   ogCardUrl: _ogCardUrl,
-  sessionId: _sessionId
+  sessionId
 }: {
   deepLink: string
   ogCardUrl: string
   sessionId: string
 }) {
   const [copied, setCopied] = useState(false)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -24,8 +36,17 @@ export function ShareSheet({
           text: 'Check out my restored photo!',
           url: deepLink
         })
+        logger.shareEvent(sessionId, 'native')
       } catch (err) {
-        console.error('Share failed:', err)
+        // User cancelled share or share failed
+        if ((err as Error).name !== 'AbortError') {
+          // Only log if not user-cancelled
+          logger.error('Native share failed', {
+            sessionId,
+            error: (err as Error).message,
+            operation: 'share',
+          })
+        }
         fallbackCopy()
       }
     } else {
@@ -34,9 +55,28 @@ export function ShareSheet({
   }
 
   const fallbackCopy = async () => {
-    await navigator.clipboard.writeText(deepLink)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(deepLink)
+      setCopied(true)
+      toast.success('Link copied!', 'The share link has been copied to your clipboard.')
+      logger.shareEvent(sessionId, 'copy')
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      // Clipboard access denied or not available
+      logger.error('Clipboard copy failed', {
+        sessionId,
+        error: (err as Error).message,
+        operation: 'share',
+      })
+      toast.error(
+        'Could not copy link',
+        'Please copy the link manually from the address bar.'
+      )
+    }
   }
 
   return (

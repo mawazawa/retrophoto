@@ -34,11 +34,17 @@ export async function incrementQuota(fingerprint: string): Promise<void> {
   const supabase = await createClient();
 
   // Get existing quota or create new one, then increment
-  const { data: existing } = await supabase
+  const { data: existing, error: fetchError } = await supabase
     .from('user_quota')
     .select('fingerprint, restore_count')
     .eq('fingerprint', fingerprint)
     .single();
+
+  // PGRST116 = "no rows returned" which is expected for new users
+  // Any other error is a real database error that should be thrown
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    throw fetchError;
+  }
 
   if (existing) {
     // Update existing record

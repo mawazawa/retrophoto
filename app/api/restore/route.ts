@@ -1,6 +1,6 @@
-// @ts-nocheck - Type errors expected until database is deployed
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getServiceRoleClient } from '@/lib/supabase/service-role';
 import {
   uploadOriginalImage,
   uploadRestoredImage,
@@ -14,6 +14,8 @@ import { trackTTM } from '@/lib/metrics/analytics';
 import { validateImageFile } from '@/lib/utils';
 import { logger } from '@/lib/observability/logger';
 import { trackTTMAlert, trackRestorationFailure, trackValidationError } from '@/lib/observability/alerts';
+import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit';
+import { validateCsrf, csrfErrorResponse } from '@/lib/security/csrf';
 import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
@@ -21,6 +23,11 @@ export async function POST(request: NextRequest) {
   let fingerprint: string | undefined;
 
   try {
+    // CSRF protection - validate request origin
+    if (!validateCsrf(request)) {
+      return NextResponse.json(csrfErrorResponse, { status: 403 });
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     fingerprint = formData.get('fingerprint') as string;
@@ -35,6 +42,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check rate limit
+    const rateLimitResult = checkRateLimit(fingerprint, rateLimitConfigs.restore);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(rateLimitedResponse(rateLimitResult), {
+        status: 429,
+        headers: getRateLimitHeaders(rateLimitResult),
+      });
+    }
+
     // Validate file
     const validation = validateImageFile(file);
     if (!validation.valid) {
@@ -46,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check authentication and credits
-    console.log('[RESTORE] Step 1: Checking authentication and credits');
+    logger.debug('Checking authentication and credits', { fingerprint });
     const supabaseAuth = await createClient();
     const { data: { user } } = await supabaseAuth.auth.getUser();
 
@@ -58,23 +74,23 @@ export async function POST(request: NextRequest) {
       userId = user.id;
       const { data: userCredits, error: creditsError } = await supabaseAuth
         .from('user_credits')
-        .select('available_credits')
+        .select('credits_balance')
         .eq('user_id', userId)
         .single();
 
-      if (!creditsError && userCredits && userCredits.available_credits > 0) {
+      if (!creditsError && userCredits && userCredits.credits_balance > 0) {
         usePaidCredits = true;
-        console.log('[RESTORE] User has credits:', userCredits.available_credits);
+        logger.debug('User has credits', { userId, credits: userCredits.credits_balance });
       } else {
-        console.log('[RESTORE] User has no credits, checking free quota');
+        logger.debug('User has no credits, checking free quota', { userId });
       }
     }
 
     // If no paid credits, check free quota
     if (!usePaidCredits) {
-      console.log('[RESTORE] Checking free quota for', fingerprint);
+      logger.debug('Checking free quota', { fingerprint });
       const hasQuota = await checkQuota(fingerprint);
-      console.log('[RESTORE] Quota check result:', hasQuota);
+      logger.debug('Quota check result', { fingerprint, allowed: hasQuota });
       if (!hasQuota) {
         return NextResponse.json(
           {
@@ -89,27 +105,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload original
-    console.log('[RESTORE] Step 2: Uploading original image');
     logger.uploadStart(fingerprint, file.size, file.type);
     const originalUrl = await uploadOriginalImage(file, fingerprint);
-    console.log('[RESTORE] Original uploaded to:', originalUrl);
+    logger.debug('Original uploaded', { fingerprint, originalUrl });
 
     // Deduct credit if using paid credits (before processing)
     if (usePaidCredits && userId) {
-      console.log('[RESTORE] Deducting credit for user:', userId);
+      logger.debug('Deducting credit', { userId });
 
-      // Use service role client for RPC call
-      const supabaseServiceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      const supabaseService = await import('@supabase/supabase-js').then(m =>
-        m.createClient(supabaseServiceUrl, supabaseServiceKey)
-      );
+      // Use cached service role client for RPC call (avoids dynamic import overhead)
+      const supabaseService = getServiceRoleClient();
 
       const { data: deductResult, error: deductError } = await supabaseService
         .rpc('deduct_credit', { p_user_id: userId });
 
       if (deductError) {
-        console.error('[RESTORE] Credit deduction error:', deductError);
+        logger.error('Credit deduction failed', { userId, error: deductError.message });
         return NextResponse.json(
           {
             error: 'Failed to deduct credit. Please try again.',
@@ -119,11 +130,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.log('[RESTORE] Credit deducted:', deductResult);
+      logger.debug('Credit deducted', { userId, result: deductResult });
     }
 
     // Create session
-    console.log('[RESTORE] Step 3: Creating session');
+    logger.debug('Creating session', { fingerprint });
     const supabase = await createClient();
     const { data: session, error: sessionError } = await supabase
       .from('upload_sessions')
@@ -138,27 +149,33 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (sessionError) {
-      console.error('[RESTORE] Session creation error:', sessionError);
+      logger.error('Session creation failed', { fingerprint, error: sessionError.message });
       throw sessionError;
     }
-    console.log('[RESTORE] Session created:', session.id);
+    logger.debug('Session created', { sessionId: session.id });
 
     // Process with AI
-    console.log('[RESTORE] Step 4: Starting AI restoration');
     logger.restorationStart(session.id);
     const restoredUrl = await restoreImage(originalUrl);
-    console.log('[RESTORE] AI restoration complete:', restoredUrl);
+    logger.debug('AI restoration complete', { sessionId: session.id });
 
     // Download and validate resolution (T050a)
-    const restoredBuffer = await fetch(restoredUrl).then((r) =>
-      r.arrayBuffer()
-    );
+    const restoredResponse = await fetch(restoredUrl);
+    if (!restoredResponse.ok) {
+      throw new Error(`Failed to fetch restored image: ${restoredResponse.status}`);
+    }
+    const restoredBuffer = await restoredResponse.arrayBuffer();
     const metadata = await sharp(Buffer.from(restoredBuffer)).metadata();
 
-    if (Math.max(metadata.width!, metadata.height!) < 2048) {
-      console.warn(
-        `Restored image below 2048px: ${metadata.width}x${metadata.height}`
-      );
+    // Safely check dimensions with fallback
+    const width = metadata.width ?? 0;
+    const height = metadata.height ?? 0;
+    if (Math.max(width, height) < 2048) {
+      logger.warn('Restored image below 2048px', {
+        sessionId: session.id,
+        width,
+        height,
+      });
     }
 
     // Upload restored image to our storage
@@ -167,39 +184,91 @@ export async function POST(request: NextRequest) {
       session.id
     );
 
-    // Generate share artifacts
-    const ogCardResponse = await generateOGCard(originalUrl, finalRestoredUrl);
-    const ogCardBuffer = Buffer.from(await ogCardResponse.arrayBuffer());
-    const ogCardUrl = await uploadRestoredImage(
-      ogCardBuffer,
-      `${session.id}-og`
-    );
-
-    const gifBuffer = await generateRevealGIF(originalUrl, finalRestoredUrl);
-    const gifUrl = await uploadRestoredImage(gifBuffer, `${session.id}-gif`);
-
-    // Generate deep link (uses NEXT_PUBLIC_BASE_URL or fallback to retrophotoai.com)
+    // Generate share artifacts in parallel for better performance
     const deepLink = generateDeepLink(session.id);
 
-    // Create restoration result
-    await supabase.from('restoration_results').insert({
-      session_id: session.id,
-      restored_url: finalRestoredUrl,
-      og_card_url: ogCardUrl,
-      gif_url: gifUrl,
-      deep_link: deepLink,
-      watermark_applied: true,
-    });
+    const [ogCardUrl, gifUrl] = await Promise.all([
+      // Generate and upload OG card
+      (async () => {
+        try {
+          const ogCardResponse = await generateOGCard(originalUrl, finalRestoredUrl);
+          const ogCardBuffer = Buffer.from(await ogCardResponse.arrayBuffer());
+          return await uploadRestoredImage(ogCardBuffer, `${session.id}-og`);
+        } catch (error) {
+          logger.warn('OG card generation failed', {
+            sessionId: session.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return ''; // Continue even if OG card fails
+        }
+      })(),
+      // Generate and upload GIF
+      (async () => {
+        try {
+          const gifBuffer = await generateRevealGIF(originalUrl, finalRestoredUrl);
+          return await uploadRestoredImage(gifBuffer, `${session.id}-gif`);
+        } catch (error) {
+          logger.warn('GIF generation failed', {
+            sessionId: session.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return ''; // Continue even if GIF fails
+        }
+      })(),
+    ]);
 
-    // Update session status
-    await supabase
-      .from('upload_sessions')
-      .update({ status: 'complete' })
-      .eq('id', session.id);
+    // Batch database operations in parallel for better performance
+    // CRITICAL: Must check Supabase errors - they don't reject on failure
+    const [insertResult, updateResult] = await Promise.all([
+      // Create restoration result
+      supabase.from('restoration_results').insert({
+        session_id: session.id,
+        restored_url: finalRestoredUrl,
+        og_card_url: ogCardUrl,
+        gif_url: gifUrl,
+        deep_link: deepLink,
+        watermark_applied: true,
+      }),
+      // Update session status
+      supabase
+        .from('upload_sessions')
+        .update({ status: 'complete' })
+        .eq('id', session.id),
+    ]);
 
-    // Increment quota only if using free tier
+    // Check for database errors - these are critical failures
+    if (insertResult.error) {
+      logger.error('Failed to save restoration result', {
+        sessionId: session.id,
+        error: insertResult.error.message,
+        code: insertResult.error.code,
+        operation: 'restoration',
+      });
+      throw new Error(`Failed to save restoration: ${insertResult.error.message}`);
+    }
+
+    if (updateResult.error) {
+      logger.error('Failed to update session status', {
+        sessionId: session.id,
+        error: updateResult.error.message,
+        code: updateResult.error.code,
+        operation: 'restoration',
+      });
+      // Don't throw - result was saved, session status is non-critical
+    }
+
+    // Increment quota only if using free tier (after critical operations)
     if (!usePaidCredits) {
-      await incrementQuota(fingerprint);
+      try {
+        await incrementQuota(fingerprint);
+      } catch (quotaErr) {
+        // Log but don't fail - restoration was successful
+        logger.warn('Failed to increment quota', {
+          fingerprint,
+          error: quotaErr instanceof Error ? quotaErr.message : String(quotaErr),
+          operation: 'restoration',
+        });
+      }
     }
 
     // Track TTM
@@ -225,37 +294,15 @@ export async function POST(request: NextRequest) {
       ttm_seconds: ttmSeconds,
     });
   } catch (error) {
-    // Comprehensive error logging
-    console.error('RESTORE API ERROR - Raw:', error);
-    console.error('RESTORE API ERROR - Type:', typeof error);
-    console.error('RESTORE API ERROR - Constructor:', error?.constructor?.name);
-    
-    // Try to extract meaningful error information
-    let errorDetails: any = {};
-    if (error instanceof Error) {
-      errorDetails = {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-      };
-    } else if (typeof error === 'object' && error !== null) {
-      errorDetails = {
-        ...error,
-        stringified: JSON.stringify(error, null, 2),
-      };
-    } else {
-      errorDetails = {
-        value: String(error),
-      };
-    }
-    
-    console.error('RESTORE API ERROR - Parsed:', JSON.stringify(errorDetails, null, 2));
-    
+    // Extract error details for structured logging
     const err = error instanceof Error ? error : new Error(JSON.stringify(error));
-    
+
     logger.error('Restoration failed', {
-      error: err.message,
+      fingerprint,
       operation: 'restoration',
+      error: err.message,
+      errorType: error?.constructor?.name,
+      stack: err.stack,
     });
 
     // Handle retry logic if session was created

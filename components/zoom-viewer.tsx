@@ -1,6 +1,6 @@
 "use client"
 
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useCallback } from 'react'
 import { X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -19,6 +19,23 @@ export function ZoomViewer({
   imageUrl: string
   onClose: () => void
 }) {
+  // Handle escape key to close modal (accessibility)
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    },
+    [onClose]
+  )
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [handleKeyDown])
+
   return (
     <div className="fixed inset-0 z-50 bg-background">
       <div className="absolute top-4 right-4 z-10 flex gap-2">

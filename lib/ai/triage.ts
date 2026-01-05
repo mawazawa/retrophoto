@@ -1,26 +1,55 @@
 /**
  * AI Triage System
  * Uses Anthropic Claude Sonnet 4.5 for image analysis and model routing
+ *
+ * NOTE: This module is optional and only used when ENABLE_MULTI_MODEL=true
+ * The @anthropic-ai/sdk package is optional - install with: npm install @anthropic-ai/sdk
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import type { ImageAnalysis, ImageContentType, DamageProfile, ModelType } from './types';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
+// Lazy load Anthropic SDK to avoid build errors when not installed
+// The SDK is optional - only needed when ENABLE_MULTI_MODEL=true
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let anthropicClient: any = null;
+
+async function getAnthropicClient(): Promise<any | null> {
+  if (!anthropicClient) {
+    try {
+      // Use dynamic require to avoid TypeScript checking the optional dependency
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Anthropic = require('@anthropic-ai/sdk').default;
+      anthropicClient = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY!,
+      });
+    } catch {
+      console.warn('[TRIAGE] Anthropic SDK not installed. Install with: npm install @anthropic-ai/sdk');
+      return null;
+    }
+  }
+  return anthropicClient;
+}
 
 export async function analyzeImageForRouting(imageUrl: string): Promise<ImageAnalysis> {
   try {
     console.log('[TRIAGE] Starting image analysis for:', imageUrl);
 
+    // Get Anthropic client (lazy loaded)
+    const client = await getAnthropicClient();
+    if (!client) {
+      throw new Error('Anthropic SDK not available');
+    }
+
     // Fetch image and convert to base64
     const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to fetch image for triage: ${imageResponse.status} ${imageResponse.statusText}`);
+    }
     const imageBuffer = await imageResponse.arrayBuffer();
     const base64Image = Buffer.from(imageBuffer).toString('base64');
     const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
 
-    const message = await anthropic.messages.create({
+    const message = await client.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 1024,
       messages: [
@@ -81,7 +110,35 @@ Be precise and analytical. Return ONLY the JSON, no other text.`,
     const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
     console.log('[TRIAGE] Raw response:', responseText);
 
-    const analysisData = JSON.parse(responseText);
+    // SECURITY: Safely parse JSON with error handling
+    let analysisData: any;
+    try {
+      // Try to extract JSON from response (Claude may add markdown or explanation text)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON object found in response');
+      }
+      analysisData = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      console.error('[TRIAGE] Failed to parse response as JSON:', parseError);
+      // Return a safe default analysis that routes to the general-purpose model
+      return {
+        content_type: 'mixed' as ImageContentType,
+        damage_profile: {
+          fading: 0.5,
+          tears: 0.3,
+          stains: 0.3,
+          scratches: 0.3,
+          noise: 0.3,
+          text_detected: false,
+        },
+        resolution: { width: 0, height: 0, short_edge: 0 },
+        faces_detected: 0,
+        recommended_model: 'replicate_swinir', // Default to general-purpose model
+        confidence: 0.5,
+        reasoning: 'Failed to parse AI response, using default restoration model',
+      };
+    }
 
     // Convert to our internal format
     const damageProfile: DamageProfile = {

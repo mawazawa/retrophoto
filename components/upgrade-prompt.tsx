@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Loader2 } from 'lucide-react'
 import { generateFingerprint } from '@/lib/quota/client-tracker'
+import { toast } from '@/hooks/use-toast'
 
 export function UpgradePrompt({
   open,
@@ -36,12 +37,10 @@ export function UpgradePrompt({
       if (data.url) {
         window.location.href = data.url
       } else {
-        console.error('No checkout URL returned')
-        alert('Failed to create checkout session. Please try again.')
+        toast.error('Checkout failed', 'Failed to create checkout session. Please try again.')
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error)
-      alert('Failed to start checkout. Please try again.')
+      toast.error('Checkout failed', 'Failed to start checkout. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -80,7 +79,14 @@ export function UpgradePrompt({
               onClick={handleUpgrade}
               disabled={isLoading}
             >
-              {isLoading ? 'Loading...' : 'Buy 10 Credits - $9.99'}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Buy 10 Credits - $9.99'
+              )}
             </Button>
             <Button
               variant="outline"

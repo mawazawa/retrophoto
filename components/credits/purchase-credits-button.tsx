@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { generateFingerprint } from '@/lib/quota/client-tracker'
+import { toast } from '@/hooks/use-toast'
 
 interface PurchaseCreditsButtonProps {
   variant?: 'default' | 'outline' | 'ghost'
@@ -45,8 +46,7 @@ export function PurchaseCreditsButton({
       // Redirect to Stripe Checkout
       window.location.href = url
     } catch (error) {
-      console.error('Purchase error:', error)
-      alert(error instanceof Error ? error.message : 'Failed to start checkout')
+      toast.error('Purchase failed', error instanceof Error ? error.message : 'Failed to start checkout')
       setIsLoading(false)
     }
   }

@@ -1,21 +1,16 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { headers } from 'next/headers'
-import { createClient } from '@supabase/supabase-js'
+import { getServiceRoleClient } from '@/lib/supabase/service-role'
+import { sendPaymentSuccessEmail, sendPaymentFailureEmail } from '@/lib/email'
+import { logger } from '@/lib/observability/logger'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
   apiVersion: '2025-09-30.clover',
 }) : null
-
-// Use service role key for webhook handler (bypasses RLS)
-const supabase = supabaseUrl && supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : null
 
 export async function POST(request: Request) {
   let event: Stripe.Event | undefined
@@ -28,6 +23,8 @@ export async function POST(request: Request) {
       )
     }
 
+    // Get cached service role client for optimal performance
+    const supabase = getServiceRoleClient()
     if (!supabase) {
       return NextResponse.json(
         { error: 'Supabase is not configured', error_code: 'SUPABASE_UNAVAILABLE' },
@@ -49,22 +46,42 @@ export async function POST(request: Request) {
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
     } catch (err) {
-      console.error('Webhook signature verification failed:', err)
+      logger.error('Webhook signature verification failed', {
+        error: err instanceof Error ? err.message : String(err),
+        operation: 'stripe_webhook',
+      })
       return NextResponse.json(
         { error: 'Invalid signature', error_code: 'INVALID_SIGNATURE' },
         { status: 400 }
       )
     }
 
-    // Database-backed idempotency check
-    const { data: existingEvent } = await supabase
+    // Database-backed idempotency check - use maybeSingle to handle zero rows gracefully
+    const { data: existingEvent, error: checkError } = await supabase
       .from('stripe_webhook_events')
       .select('id, processing_status')
       .eq('event_id', event.id)
-      .single()
+      .maybeSingle()
+
+    // If check fails (not "no rows" but actual DB error), we must fail closed
+    if (checkError) {
+      logger.error('Failed to check webhook idempotency', {
+        eventId: event.id,
+        error: checkError.message,
+        operation: 'stripe_webhook',
+      })
+      return NextResponse.json(
+        { error: 'Database error during idempotency check', error_code: 'DB_ERROR' },
+        { status: 500 }
+      )
+    }
 
     if (existingEvent) {
-      console.log(`Event ${event.id} already processed (status: ${existingEvent.processing_status})`)
+      logger.debug('Webhook event already processed', {
+        eventId: event.id,
+        status: existingEvent.processing_status,
+        operation: 'stripe_webhook',
+      })
       return NextResponse.json({ received: true, duplicate: true })
     }
 
@@ -81,10 +98,20 @@ export async function POST(request: Request) {
     if (insertError) {
       // If insert fails due to unique constraint, event is duplicate
       if (insertError.code === '23505') {
-        console.log(`Event ${event.id} duplicate detected via DB constraint`)
+        logger.debug('Webhook event duplicate via DB constraint', { eventId: event.id })
         return NextResponse.json({ received: true, duplicate: true })
       }
-      console.error('Error logging webhook event:', insertError)
+      // For any other insert error, fail closed to prevent processing without audit trail
+      logger.error('Failed to log webhook event - failing closed', {
+        eventId: event.id,
+        error: insertError.message,
+        code: insertError.code,
+        operation: 'stripe_webhook',
+      })
+      return NextResponse.json(
+        { error: 'Failed to log webhook event', error_code: 'AUDIT_LOG_FAILED' },
+        { status: 500 }
+      )
     }
 
     // Handle the event
@@ -92,20 +119,29 @@ export async function POST(request: Request) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
 
-        console.log('Checkout completed:', {
+        logger.info('Checkout completed', {
           sessionId: session.id,
           userId: session.client_reference_id,
           customerId: session.customer,
           amountTotal: session.amount_total,
+          operation: 'stripe_webhook',
         })
 
         if (!session.client_reference_id) {
-          console.warn('No user ID in checkout session')
+          logger.warn('No user ID in checkout session', { sessionId: session.id })
           break
         }
 
         const creditsToAdd = 10
         const userId = session.client_reference_id
+
+        // Safely extract Stripe fields with null checks
+        const paymentIntentId = typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : session.payment_intent?.id || null
+        const customerId = typeof session.customer === 'string'
+          ? session.customer
+          : session.customer?.id || null
 
         // Create payment transaction record
         const { data: transaction, error: txError } = await supabase
@@ -113,10 +149,10 @@ export async function POST(request: Request) {
           .insert({
             user_id: userId,
             stripe_session_id: session.id,
-            stripe_payment_intent_id: session.payment_intent as string,
-            stripe_customer_id: session.customer as string,
-            amount: session.amount_total!,
-            currency: session.currency!,
+            stripe_payment_intent_id: paymentIntentId,
+            stripe_customer_id: customerId,
+            amount: session.amount_total ?? 0,
+            currency: session.currency ?? 'usd',
             credits_purchased: creditsToAdd,
             status: 'completed',
             metadata: {
@@ -128,8 +164,14 @@ export async function POST(request: Request) {
           .single()
 
         if (txError) {
-          console.error('Error creating transaction:', txError)
+          logger.error('Error creating transaction', { userId, error: txError.message })
           throw new Error(`Failed to create transaction: ${txError.message}`)
+        }
+
+        // Validate transaction was returned (should not be null after successful insert)
+        if (!transaction || !transaction.id) {
+          logger.error('Transaction insert succeeded but no data returned', { userId })
+          throw new Error('Transaction created but ID not returned')
         }
 
         // Add credits with batch tracking
@@ -140,17 +182,31 @@ export async function POST(request: Request) {
         })
 
         if (creditError) {
-          console.error('Error adding credits:', creditError)
+          logger.error('Error adding credits', { userId, error: creditError.message })
           throw new Error(`Failed to add credits: ${creditError.message}`)
         }
 
-        console.log('Payment processed successfully:', {
+        // Type the RPC response
+        const creditResult = creditData as { new_balance?: number; batch_id?: string } | null
+
+        logger.info('Payment processed successfully', {
           userId,
           transactionId: transaction.id,
           creditsAdded: creditsToAdd,
-          newBalance: creditData?.new_balance,
-          batchId: creditData?.batch_id,
+          newBalance: creditResult?.new_balance,
+          batchId: creditResult?.batch_id,
+          operation: 'stripe_webhook',
         })
+
+        // Send payment success email if customer email is available
+        if (session.customer_details?.email) {
+          await sendPaymentSuccessEmail(
+            session.customer_details.email,
+            session.amount_total || 0,
+            creditsToAdd,
+            transaction.id
+          ).catch((err) => logger.error('Failed to send success email', { error: err.message }))
+        }
 
         break
       }
@@ -158,10 +214,11 @@ export async function POST(request: Request) {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
 
-        console.log('Payment intent succeeded:', {
+        logger.info('Payment intent succeeded', {
           paymentIntentId: paymentIntent.id,
           amount: paymentIntent.amount,
           customerId: paymentIntent.customer,
+          operation: 'stripe_webhook',
         })
 
         break
@@ -170,12 +227,20 @@ export async function POST(request: Request) {
       case 'payment_intent.payment_failed': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
 
-        console.error('Payment intent failed:', {
+        logger.error('Payment intent failed', {
           paymentIntentId: paymentIntent.id,
-          lastError: paymentIntent.last_payment_error,
+          lastError: paymentIntent.last_payment_error?.message,
+          operation: 'stripe_webhook',
         })
 
-        // TODO: Send payment failure notification to user
+        // Send payment failure notification if email available
+        const failureReceipt = paymentIntent.receipt_email
+        if (failureReceipt) {
+          const errorMessage = paymentIntent.last_payment_error?.message
+          await sendPaymentFailureEmail(failureReceipt, errorMessage).catch((err) =>
+            logger.error('Failed to send failure email', { error: err.message })
+          )
+        }
 
         break
       }
@@ -183,10 +248,11 @@ export async function POST(request: Request) {
       case 'customer.subscription.created': {
         const subscription = event.data.object as Stripe.Subscription
 
-        console.log('Subscription created:', {
+        logger.info('Subscription created', {
           subscriptionId: subscription.id,
           status: subscription.status,
           customerId: subscription.customer,
+          operation: 'stripe_webhook',
         })
 
         break
@@ -195,10 +261,11 @@ export async function POST(request: Request) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
 
-        console.log('Subscription updated:', {
+        logger.info('Subscription updated', {
           subscriptionId: subscription.id,
           status: subscription.status,
           customerId: subscription.customer,
+          operation: 'stripe_webhook',
         })
 
         break
@@ -207,9 +274,10 @@ export async function POST(request: Request) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
 
-        console.log('Subscription cancelled:', {
+        logger.info('Subscription cancelled', {
           subscriptionId: subscription.id,
           customerId: subscription.customer,
+          operation: 'stripe_webhook',
         })
 
         break
@@ -218,10 +286,11 @@ export async function POST(request: Request) {
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice
 
-        console.log('Invoice payment succeeded:', {
+        logger.info('Invoice payment succeeded', {
           invoiceId: invoice.id,
           amountPaid: invoice.amount_paid,
           customerId: invoice.customer,
+          operation: 'stripe_webhook',
         })
 
         break
@@ -230,12 +299,19 @@ export async function POST(request: Request) {
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
 
-        console.log('Invoice payment failed:', {
+        logger.warn('Invoice payment failed', {
           invoiceId: invoice.id,
           customerId: invoice.customer,
+          operation: 'stripe_webhook',
         })
 
-        // TODO: Send payment failure notification to user
+        // Send payment failure notification for invoice
+        if (invoice.customer_email) {
+          await sendPaymentFailureEmail(
+            invoice.customer_email,
+            'Invoice payment failed'
+          ).catch((err) => logger.error('Failed to send invoice failure email', { error: err.message }))
+        }
 
         break
       }
@@ -243,10 +319,11 @@ export async function POST(request: Request) {
       case 'charge.refunded': {
         const charge = event.data.object as Stripe.Charge
 
-        console.log('Charge refunded:', {
+        logger.info('Charge refunded', {
           chargeId: charge.id,
           amount: charge.amount_refunded,
           paymentIntent: charge.payment_intent,
+          operation: 'stripe_webhook',
         })
 
         // Find transaction by payment intent or charge ID
@@ -268,28 +345,32 @@ export async function POST(request: Request) {
           })
 
           if (refundError) {
-            console.error('Error processing refund:', refundError)
+            logger.error('Error processing refund', { transactionId, error: refundError.message })
             throw new Error(`Failed to process refund: ${refundError.message}`)
           }
 
-          console.log('Refund processed successfully:', {
+          // Type the RPC response
+          const refundResult = refundData as { new_balance?: number; credits_deducted?: number } | null
+
+          logger.info('Refund processed successfully', {
             transactionId,
-            newBalance: refundData?.new_balance,
-            creditsDeducted: refundData?.credits_deducted,
+            newBalance: refundResult?.new_balance,
+            creditsDeducted: refundResult?.credits_deducted,
+            operation: 'stripe_webhook',
           })
         } else {
-          console.warn('No transaction found for refunded charge:', charge.id)
+          logger.warn('No transaction found for refunded charge', { chargeId: charge.id })
         }
 
         break
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        logger.debug('Unhandled webhook event type', { eventType: event.type })
     }
 
     // Mark event as successfully processed
-    await supabase
+    const { error: updateError } = await supabase
       .from('stripe_webhook_events')
       .update({
         processing_status: 'success',
@@ -297,14 +378,30 @@ export async function POST(request: Request) {
       })
       .eq('event_id', event.id)
 
+    if (updateError) {
+      // Log but don't fail - processing already completed successfully
+      // Failing here would cause Stripe to retry and potentially duplicate processing
+      logger.warn('Failed to mark webhook as processed', {
+        eventId: event.id,
+        error: updateError.message,
+        operation: 'stripe_webhook',
+      })
+    }
+
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Error processing webhook:', error)
+    logger.error('Error processing webhook', {
+      eventId: event?.id,
+      eventType: event?.type,
+      error: error instanceof Error ? error.message : String(error),
+      operation: 'stripe_webhook',
+    })
 
     // Mark event as failed (if event was logged)
     try {
-      if (supabase && event?.id) {
-        await supabase
+      const errorSupabase = getServiceRoleClient()
+      if (errorSupabase && event?.id) {
+        await errorSupabase
           .from('stripe_webhook_events')
           .update({
             processing_status: 'failed',
