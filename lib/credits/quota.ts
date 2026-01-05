@@ -16,7 +16,7 @@ export async function hasCredits(userId: string): Promise<boolean> {
 
   const { data, error } = await supabase
     .from('user_credits')
-    .select('credits_balance')
+    .select('available_credits')
     .eq('user_id', userId)
     .single()
 
@@ -36,7 +36,7 @@ export async function hasCredits(userId: string): Promise<boolean> {
     return false
   }
 
-  return data.credits_balance > 0
+  return data.available_credits > 0
 }
 
 /**
@@ -80,7 +80,7 @@ export async function getCreditBalance(userId: string): Promise<number> {
 
   const { data, error } = await supabase
     .from('user_credits')
-    .select('credits_balance')
+    .select('available_credits')
     .eq('user_id', userId)
     .single()
 
@@ -99,7 +99,7 @@ export async function getCreditBalance(userId: string): Promise<number> {
     return 0
   }
 
-  return data.credits_balance
+  return data.available_credits
 }
 
 /**

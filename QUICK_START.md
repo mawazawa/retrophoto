@@ -91,12 +91,12 @@ Expected response:
 
 **Database connection fails**:
 ```bash
-# Verify tables exist
+# Verify tables exist (requires NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY env vars)
 node -e "
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(
-  'https://sbwgkocarqvonkdlitdx.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNid2drb2NhcnF2b25rZGxpdGR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0NjMyNTIsImV4cCI6MjA3NTAzOTI1Mn0.OelLtQvHVhiSjEcL3PxS5yfM-CRc3Ino_L7ykDG4Now'
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 (async () => {
   const { error } = await supabase.from('upload_sessions').select('*').limit(1);

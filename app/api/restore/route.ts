@@ -74,13 +74,13 @@ export async function POST(request: NextRequest) {
       userId = user.id;
       const { data: userCredits, error: creditsError } = await supabaseAuth
         .from('user_credits')
-        .select('credits_balance')
+        .select('available_credits')
         .eq('user_id', userId)
         .single();
 
-      if (!creditsError && userCredits && userCredits.credits_balance > 0) {
+      if (!creditsError && userCredits && userCredits.available_credits > 0) {
         usePaidCredits = true;
-        logger.debug('User has credits', { userId, credits: userCredits.credits_balance });
+        logger.debug('User has credits', { userId, credits: userCredits.available_credits });
       } else {
         logger.debug('User has no credits, checking free quota', { userId });
       }
