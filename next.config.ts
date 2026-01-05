@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 import withPWA from '@ducanh2912/next-pwa';
 import { withSentryConfig } from '@sentry/nextjs';
 import withBundleAnalyzer from '@next/bundle-analyzer';
+import { getNextConfigHeaders } from './lib/security/headers';
 
 const bundleAnalyzer = withBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
@@ -25,6 +26,10 @@ const nextConfig: NextConfig = {
   // Performance optimizations (T082-T086)
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog'],
+  },
+  // Security headers for static assets
+  headers: async () => {
+    return getNextConfigHeaders();
   },
 };
 

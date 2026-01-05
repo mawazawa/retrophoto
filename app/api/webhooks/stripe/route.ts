@@ -4,6 +4,10 @@ import { headers } from 'next/headers'
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
 import { sendPaymentSuccessEmail, sendPaymentFailureEmail } from '@/lib/email'
 import { logger } from '@/lib/observability/logger'
+import { Database } from '@/lib/supabase/types'
+
+// Type alias for JSON payload storage
+type Json = Database['public']['Tables']['stripe_webhook_events']['Insert']['payload']
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
@@ -86,12 +90,13 @@ export async function POST(request: Request) {
     }
 
     // Log webhook event for idempotency and audit
+    // Convert Stripe.Event to Json type for database storage
     const { error: insertError } = await supabase
       .from('stripe_webhook_events')
       .insert({
         event_id: event.id,
         event_type: event.type,
-        payload: event as any,
+        payload: event as unknown as Json,
         processing_status: 'pending',
       })
 

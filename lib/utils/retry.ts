@@ -5,6 +5,7 @@
  */
 
 import pRetry, { AbortError } from 'p-retry'
+import { logger } from '@/lib/observability/logger'
 
 export interface RetryOptions {
   /** Number of retry attempts (default: 3) */
@@ -55,11 +56,11 @@ export async function withRetry<T>(
     factor,
     onFailedAttempt: (error) => {
       const errorMessage = error instanceof Error ? error.message : String(error)
-      console.warn(
-        `Retry attempt ${error.attemptNumber} failed. ` +
-          `${error.retriesLeft} retries left.`,
-        errorMessage
-      )
+      logger.warn('Retry attempt failed', {
+        attemptNumber: error.attemptNumber,
+        retriesLeft: error.retriesLeft,
+        error: errorMessage
+      })
       onRetry?.(error as unknown as Error, error.attemptNumber)
     },
   })

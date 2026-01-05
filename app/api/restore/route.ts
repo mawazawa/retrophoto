@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check rate limit
-    const rateLimitResult = checkRateLimit(fingerprint, rateLimitConfigs.restore);
+    const rateLimitResult = await checkRateLimit(fingerprint, rateLimitConfigs.restore);
     if (!rateLimitResult.allowed) {
       return NextResponse.json(rateLimitedResponse(rateLimitResult), {
         status: 429,

@@ -16,6 +16,7 @@ import type {
 } from './types';
 import { restoreImage as restoreWithSwinIR } from './restore';
 import { validateQuality } from './quality-validator';
+import { logger } from '@/lib/observability/logger';
 
 // Feature flag for multi-model orchestration
 // Disabled by default until other providers are implemented
@@ -49,21 +50,26 @@ export async function orchestrateRestoration(
 ): Promise<RestorationResult> {
   const startTime = Date.now();
 
-  console.log('[ORCHESTRATOR] Starting restoration pipeline');
-  console.log('[ORCHESTRATOR] Multi-model enabled:', ENABLE_MULTI_MODEL);
+  logger.debug('Starting restoration pipeline', {
+    imageUrl,
+    multiModelEnabled: ENABLE_MULTI_MODEL
+  });
 
   try {
     let analysis: ImageAnalysis;
 
     // Step 1: Triage (skip when multi-model is disabled for faster processing)
     if (ENABLE_MULTI_MODEL && (options.model === 'auto' || !options.model)) {
-      console.log('[ORCHESTRATOR] Step 1: Image triage and analysis');
+      logger.debug('Starting image triage and analysis', { imageUrl });
       try {
         // Dynamic import to avoid loading Anthropic SDK when not needed
         const { analyzeImageForRouting } = await import('./triage');
         analysis = await analyzeImageForRouting(imageUrl);
       } catch (error) {
-        console.warn('[ORCHESTRATOR] Triage failed, using direct SwinIR:', error);
+        logger.warn('Triage failed, using direct SwinIR', {
+          imageUrl,
+          error: error instanceof Error ? error.message : String(error)
+        });
         analysis = createDefaultAnalysis('Triage failed, using direct model');
       }
     } else if (options.model && options.model !== 'auto') {
@@ -72,7 +78,7 @@ export async function orchestrateRestoration(
       analysis.recommended_model = options.model as ModelType;
     } else {
       // Multi-model disabled - use direct SwinIR (fastest path)
-      console.log('[ORCHESTRATOR] Using direct SwinIR (multi-model disabled)');
+      logger.debug('Using direct SwinIR (multi-model disabled)', { imageUrl });
       analysis = createDefaultAnalysis('Direct SwinIR mode');
     }
 
@@ -85,14 +91,15 @@ export async function orchestrateRestoration(
       short_edge: Math.min(metadata.width || 0, metadata.height || 0),
     };
 
-    console.log('[ORCHESTRATOR] Analysis:', {
+    logger.debug('Analysis complete', {
+      imageUrl,
       content_type: analysis.content_type,
       recommended_model: analysis.recommended_model,
       resolution: analysis.resolution,
     });
 
     // Step 2: Primary restoration using selected model
-    console.log('[ORCHESTRATOR] Step 2: Primary restoration');
+    logger.debug('Starting primary restoration', { imageUrl });
     const selectedModel = options.force_model
       ? (options.model as ModelType)
       : analysis.recommended_model;
@@ -105,7 +112,7 @@ export async function orchestrateRestoration(
       case 'google_gemini_pro_2_5':
       case 'xai_grok4_fast':
         // These providers are not yet implemented
-        console.log(`[ORCHESTRATOR] ${selectedModel} not implemented, using SwinIR`);
+        logger.debug('Model not implemented, using SwinIR', { imageUrl, selectedModel });
         restoredUrl = await restoreWithSwinIR(imageUrl);
         break;
 
@@ -116,13 +123,14 @@ export async function orchestrateRestoration(
         break;
     }
 
-    console.log('[ORCHESTRATOR] Restoration complete:', restoredUrl);
+    logger.debug('Restoration complete', { imageUrl, restoredUrl });
 
     // Step 3: Quality validation
-    console.log('[ORCHESTRATOR] Step 3: Quality validation');
+    logger.debug('Starting quality validation', { imageUrl });
     const qualityReport = await validateQuality(restoredUrl, analysis);
 
-    console.log('[ORCHESTRATOR] Quality report:', {
+    logger.debug('Quality report generated', {
+      imageUrl,
       fadgi_score: qualityReport.fadgi_score,
       grade: qualityReport.grade,
       recommendation: qualityReport.recommendation,
@@ -150,7 +158,8 @@ export async function orchestrateRestoration(
       cost_breakdown: costBreakdown,
     };
 
-    console.log('[ORCHESTRATOR] Pipeline complete:', {
+    logger.info('Restoration pipeline complete', {
+      imageUrl,
       processing_time_ms: result.processing_time_ms,
       model_used: result.model_used,
       quality_score: result.quality_report.fadgi_score,
@@ -158,7 +167,10 @@ export async function orchestrateRestoration(
 
     return result;
   } catch (error) {
-    console.error('[ORCHESTRATOR] Pipeline failed:', error);
+    logger.error('Restoration pipeline failed', {
+      imageUrl,
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw error;
   }
 }
@@ -170,19 +182,28 @@ export async function orchestrateBatchRestoration(
   imageUrls: string[],
   options: RestorationOptions = {}
 ): Promise<RestorationResult[]> {
-  console.log('[ORCHESTRATOR] Starting batch restoration:', imageUrls.length, 'photos');
+  logger.info('Starting batch restoration', { totalPhotos: imageUrls.length });
 
   const results: RestorationResult[] = [];
 
   // Process sequentially to avoid overwhelming external APIs
   for (let i = 0; i < imageUrls.length; i++) {
-    console.log(`[ORCHESTRATOR] Processing batch photo ${i + 1}/${imageUrls.length}`);
+    logger.debug('Processing batch photo', {
+      current: i + 1,
+      total: imageUrls.length,
+      imageUrl: imageUrls[i]
+    });
 
     try {
       const result = await orchestrateRestoration(imageUrls[i], options);
       results.push(result);
     } catch (error) {
-      console.error(`[ORCHESTRATOR] Batch photo ${i + 1} failed:`, error);
+      logger.error('Batch photo failed', {
+        current: i + 1,
+        total: imageUrls.length,
+        imageUrl: imageUrls[i],
+        error: error instanceof Error ? error.message : String(error)
+      });
 
       // Create error result
       results.push({
@@ -208,7 +229,7 @@ export async function orchestrateBatchRestoration(
     }
   }
 
-  console.log('[ORCHESTRATOR] Batch complete:', {
+  logger.info('Batch restoration complete', {
     total: results.length,
     successful: results.filter((r) => r.quality_report.recommendation !== 'REJECT').length,
     failed: results.filter((r) => r.quality_report.recommendation === 'REJECT').length,

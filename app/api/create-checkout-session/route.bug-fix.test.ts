@@ -63,6 +63,9 @@ describe('Bug Fix: Guest Checkout Support', () => {
 
     const request = new Request('http://localhost:3000/api/create-checkout-session', {
       method: 'POST',
+      headers: {
+        'origin': 'http://localhost:3000'
+      },
       body: formData,
     })
 
@@ -93,6 +96,9 @@ describe('Bug Fix: Guest Checkout Support', () => {
 
     const request = new Request('http://localhost:3000/api/create-checkout-session', {
       method: 'POST',
+      headers: {
+        'origin': 'http://localhost:3000'
+      },
       body: formData,
     })
 
@@ -128,6 +134,9 @@ describe('Bug Fix: Guest Checkout Support', () => {
 
     const request = new Request('http://localhost:3000/api/create-checkout-session', {
       method: 'POST',
+      headers: {
+        'origin': 'http://localhost:3000'
+      },
       body: formData,
     })
 
@@ -206,6 +215,9 @@ describe('Bug Fix: Guest Checkout Support', () => {
 
     const request = new Request('http://localhost:3000/api/create-checkout-session', {
       method: 'POST',
+      headers: {
+        'origin': 'http://localhost:3000'
+      },
       body: formData,
     })
 

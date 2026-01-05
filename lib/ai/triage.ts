@@ -7,6 +7,7 @@
  */
 
 import type { ImageAnalysis, ImageContentType, DamageProfile, ModelType } from './types';
+import { logger } from '@/lib/observability/logger';
 
 // Lazy load Anthropic SDK to avoid build errors when not installed
 // The SDK is optional - only needed when ENABLE_MULTI_MODEL=true
@@ -23,7 +24,10 @@ async function getAnthropicClient(): Promise<any | null> {
         apiKey: process.env.ANTHROPIC_API_KEY!,
       });
     } catch {
-      console.warn('[TRIAGE] Anthropic SDK not installed. Install with: npm install @anthropic-ai/sdk');
+      logger.warn('Anthropic SDK not installed', {
+        operation: 'triage',
+        message: 'Install with: npm install @anthropic-ai/sdk'
+      });
       return null;
     }
   }
@@ -32,7 +36,7 @@ async function getAnthropicClient(): Promise<any | null> {
 
 export async function analyzeImageForRouting(imageUrl: string): Promise<ImageAnalysis> {
   try {
-    console.log('[TRIAGE] Starting image analysis for:', imageUrl);
+    logger.debug('Starting image triage analysis', { imageUrl });
 
     // Get Anthropic client (lazy loaded)
     const client = await getAnthropicClient();
@@ -108,7 +112,7 @@ Be precise and analytical. Return ONLY the JSON, no other text.`,
 
     // Parse Claude's response
     const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
-    console.log('[TRIAGE] Raw response:', responseText);
+    logger.debug('Triage raw response received', { imageUrl, responseLength: responseText.length });
 
     // SECURITY: Safely parse JSON with error handling
     let analysisData: any;
@@ -120,7 +124,10 @@ Be precise and analytical. Return ONLY the JSON, no other text.`,
       }
       analysisData = JSON.parse(jsonMatch[0]);
     } catch (parseError) {
-      console.error('[TRIAGE] Failed to parse response as JSON:', parseError);
+      logger.error('Failed to parse triage response as JSON', {
+        imageUrl,
+        error: parseError instanceof Error ? parseError.message : String(parseError)
+      });
       // Return a safe default analysis that routes to the general-purpose model
       return {
         content_type: 'mixed' as ImageContentType,
@@ -171,7 +178,8 @@ Be precise and analytical. Return ONLY the JSON, no other text.`,
       recommended_model: recommendedModel,
     };
 
-    console.log('[TRIAGE] Analysis complete:', {
+    logger.debug('Triage analysis complete', {
+      imageUrl,
       content_type: analysis.content_type,
       recommended_model: recommendedModel,
       faces: analysis.faces_detected,
@@ -179,7 +187,10 @@ Be precise and analytical. Return ONLY the JSON, no other text.`,
 
     return analysis;
   } catch (error) {
-    console.error('[TRIAGE] Error:', error);
+    logger.error('Triage error', {
+      imageUrl,
+      error: error instanceof Error ? error.message : String(error)
+    });
 
     // Fallback to SwinIR if triage fails
     return {

@@ -21,7 +21,7 @@ This document addresses **critical security issues** discovered in January 2026:
 ## Action 1: Rotate Exposed Webhook Secrets
 
 **Severity**: 🔴 CRITICAL
-**Risk**: Real Stripe webhook secret `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3` exposed in 7+ documentation files
+**Risk**: Real Stripe webhook secret `whsec_<YOUR_WEBHOOK_SECRET>` exposed in 7+ documentation files
 **Impact**: Attackers could forge webhook events, grant themselves credits, trigger refunds
 
 ### Tasks (12 tasks)
@@ -31,11 +31,11 @@ This document addresses **critical security issues** discovered in January 2026:
 | 1.1 | Generate new webhook secret in Stripe Dashboard | External (Stripe) | New `whsec_*` secret generated in Stripe Dashboard → Developers → Webhooks |
 | 1.2 | Update Vercel production environment variable | External (Vercel) | `vercel env rm STRIPE_WEBHOOK_SECRET production && vercel env add STRIPE_WEBHOOK_SECRET production` succeeds |
 | 1.3 | Update local `.env.local` with new secret | `.env.local` | Local file updated, `npm run dev` starts without webhook errors |
-| 1.4 | Redact secret from DEPLOYMENT_COMPLETE.md | `DEPLOYMENT_COMPLETE.md` | Replace all `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3` with `whsec_<YOUR_WEBHOOK_SECRET>` |
-| 1.5 | Redact secret from DEPLOYMENT_FINAL_STEPS.md | `DEPLOYMENT_FINAL_STEPS.md` | Replace all `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3` with `whsec_<YOUR_WEBHOOK_SECRET>` |
-| 1.6 | Redact secret from STRIPE_WEBHOOK_SETUP.md | `STRIPE_WEBHOOK_SETUP.md` | Replace all `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3` with `whsec_<YOUR_WEBHOOK_SECRET>` |
-| 1.7 | Redact secret from DEPLOYMENT_SUMMARY.md | `DEPLOYMENT_SUMMARY.md` | Replace `whsec_GxDgh3JnZvWbNnByQQMww4V9rVdQ8xaY` with `whsec_<YOUR_WEBHOOK_SECRET>` |
-| 1.8 | Redact secret from WEBHOOK_CONFIGURATION.md | `WEBHOOK_CONFIGURATION.md` | Replace `whsec_GxDgh3JnZvWbNnByQQMww4V9rVdQ8xaY` with `whsec_<YOUR_WEBHOOK_SECRET>` |
+| 1.4 | Redact secret from DEPLOYMENT_COMPLETE.md | `DEPLOYMENT_COMPLETE.md` | Replace all `whsec_<YOUR_WEBHOOK_SECRET>` with `whsec_<YOUR_WEBHOOK_SECRET>` |
+| 1.5 | Redact secret from DEPLOYMENT_FINAL_STEPS.md | `DEPLOYMENT_FINAL_STEPS.md` | Replace all `whsec_<YOUR_WEBHOOK_SECRET>` with `whsec_<YOUR_WEBHOOK_SECRET>` |
+| 1.6 | Redact secret from STRIPE_WEBHOOK_SETUP.md | `STRIPE_WEBHOOK_SETUP.md` | Replace all `whsec_<YOUR_WEBHOOK_SECRET>` with `whsec_<YOUR_WEBHOOK_SECRET>` |
+| 1.7 | Redact secret from DEPLOYMENT_SUMMARY.md | `DEPLOYMENT_SUMMARY.md` | Replace `whsec_<YOUR_WEBHOOK_SECRET>` with `whsec_<YOUR_WEBHOOK_SECRET>` |
+| 1.8 | Redact secret from WEBHOOK_CONFIGURATION.md | `WEBHOOK_CONFIGURATION.md` | Replace `whsec_<YOUR_WEBHOOK_SECRET>` with `whsec_<YOUR_WEBHOOK_SECRET>` |
 | 1.9 | Verify no secrets remain in codebase | All `.md` files | `grep -r "whsec_[A-Za-z0-9]{20,}" . --include="*.md"` returns only `.env.example` placeholders |
 | 1.10 | Test webhook with new secret locally | `app/api/webhooks/stripe/route.ts` | `stripe trigger checkout.session.completed` succeeds with 200 response |
 | 1.11 | Test webhook in production | External (Stripe Dashboard) | Stripe Dashboard shows successful webhook delivery (200 status) |

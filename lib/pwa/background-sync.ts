@@ -5,6 +5,8 @@
  * Constitutional requirement: FR-022 (Offline PWA with queued uploads)
  */
 
+import { logger } from '@/lib/observability/logger'
+
 export interface QueuedUpload {
   id: string
   file: File
@@ -42,7 +44,9 @@ export async function queueUpload(file: File, fingerprint: string): Promise<stri
         await registration.sync.register('upload-queue')
       }
     } catch (error) {
-      console.warn('Background sync not available:', error)
+      logger.warn('Background sync not available', {
+        error: error instanceof Error ? error.message : String(error)
+      })
     }
   }
 
@@ -65,7 +69,9 @@ export async function getQueue(): Promise<QueuedUpload[]> {
       request.onerror = () => reject(request.error)
     })
   } catch (error) {
-    console.error('Failed to get queue:', error)
+    logger.error('Failed to get queue', {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return []
   }
 }
@@ -149,10 +155,13 @@ export async function processQueue(): Promise<void> {
         }
       } else {
         // Leave in queue for next sync
-        console.error('Upload failed, will retry:', upload.id)
+        logger.warn('Upload failed, will retry', { uploadId: upload.id })
       }
     } catch (error) {
-      console.error('Failed to process queued upload:', error)
+      logger.error('Failed to process queued upload', {
+        uploadId: upload.id,
+        error: error instanceof Error ? error.message : String(error)
+      })
     }
   }
 }

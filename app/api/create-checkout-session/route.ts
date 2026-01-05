@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     }
 
     // Check rate limit
-    const rateLimitResult = checkRateLimit(userId, rateLimitConfigs.checkout)
+    const rateLimitResult = await checkRateLimit(userId, rateLimitConfigs.checkout)
     if (!rateLimitResult.allowed) {
       return NextResponse.json(rateLimitedResponse(rateLimitResult), {
         status: 429,

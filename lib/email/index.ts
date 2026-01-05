@@ -10,6 +10,8 @@
  * - Credit addition confirmations
  */
 
+import { logger } from '@/lib/observability/logger'
+
 interface EmailOptions {
   to: string
   subject: string
@@ -46,7 +48,7 @@ const IS_CONFIGURED = !!RESEND_API_KEY
  */
 export async function sendEmail(options: EmailOptions): Promise<SendResult> {
   if (!IS_CONFIGURED) {
-    console.log('[EMAIL] Service not configured, skipping:', options.subject)
+    logger.debug('Email service not configured, skipping', { subject: options.subject })
     return { success: false, error: 'Email service not configured' }
   }
 
@@ -68,15 +70,18 @@ export async function sendEmail(options: EmailOptions): Promise<SendResult> {
 
     if (!response.ok) {
       const error = await response.text()
-      console.error('[EMAIL] Failed to send:', error)
+      logger.error('Failed to send email', { subject: options.subject, error })
       return { success: false, error }
     }
 
     const data = await response.json()
-    console.log('[EMAIL] Sent successfully:', data.id)
+    logger.info('Email sent successfully', { subject: options.subject, messageId: data.id })
     return { success: true, messageId: data.id }
   } catch (error) {
-    console.error('[EMAIL] Error:', error)
+    logger.error('Email error', {
+      subject: options.subject,
+      error: error instanceof Error ? error.message : String(error)
+    })
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
