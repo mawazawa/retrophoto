@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { securityHeaders, apiSecurityHeaders } from '@/lib/security/headers'
+import { logger } from '@/lib/observability/logger'
 
 /**
  * Apply security headers to response
@@ -27,7 +28,7 @@ export async function middleware(request: NextRequest) {
 
   // Skip auth check if Supabase is not configured
   if (!supabaseUrl || !supabaseKey) {
-    console.warn('Supabase credentials not configured, skipping auth middleware')
+    logger.warn('Supabase credentials not configured, skipping auth middleware')
     return applyHeaders(supabaseResponse, isApiRoute)
   }
 

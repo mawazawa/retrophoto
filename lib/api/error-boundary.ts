@@ -136,7 +136,7 @@ function mapErrorToResponse(error: unknown, requestId: string): { statusCode: nu
     return {
       statusCode: 400,
       errorCode: 'VALIDATION_ERROR',
-      message: error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', '),
+      message: error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', '),
     }
   }
 
@@ -174,25 +174,21 @@ function isPostgrestError(error: unknown): error is PostgrestError {
  * Type guard for Stripe errors
  */
 function isStripeError(error: unknown): error is Stripe.errors.StripeError {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'type' in error &&
-    typeof (error as any).type === 'string' &&
-    (error as any).type.startsWith('Stripe')
-  )
+  if (typeof error !== 'object' || error === null || !('type' in error)) {
+    return false
+  }
+  const errorType = (error as { type: unknown }).type
+  return typeof errorType === 'string' && errorType.startsWith('Stripe')
 }
 
 /**
  * Type guard for Zod errors
  */
 function isZodError(error: unknown): error is { errors: Array<{ path: string[]; message: string }> } {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'errors' in error &&
-    Array.isArray((error as any).errors)
-  )
+  if (typeof error !== 'object' || error === null || !('errors' in error)) {
+    return false
+  }
+  return Array.isArray((error as { errors: unknown }).errors)
 }
 
 /**

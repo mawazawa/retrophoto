@@ -39,6 +39,12 @@ export const POST = withErrorBoundary(async (request: NextRequest) => {
     throw badRequest('Missing user ID or fingerprint', 'MISSING_IDENTIFIER')
   }
 
+  // Validate fingerprint format only if it's being used as the identifier (guest checkout)
+  // Authenticated users may provide optional fingerprint for tracking, no validation needed
+  if (!user && fingerprint && fingerprint.length < 20) {
+    throw badRequest('Invalid fingerprint format', 'INVALID_FINGERPRINT')
+  }
+
   // Check rate limit
   const rateLimitResult = await checkRateLimit(userId, rateLimitConfigs.checkout)
   if (!rateLimitResult.allowed) {

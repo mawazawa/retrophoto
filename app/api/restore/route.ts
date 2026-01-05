@@ -144,7 +144,7 @@ export const POST = withErrorBoundary(async (request: NextRequest) => {
     // Download and validate resolution (T050a)
     const restoredResponse = await fetch(restoredUrl);
     if (!restoredResponse.ok) {
-      throw new Error(`Failed to fetch restored image: ${restoredResponse.status}`);
+      throw internalError(`Failed to fetch restored image: ${restoredResponse.status}`, 'FETCH_RESTORED_FAILED');
     }
     const restoredBuffer = await restoredResponse.arrayBuffer();
     const metadata = await sharp(Buffer.from(restoredBuffer)).metadata();
@@ -226,7 +226,7 @@ export const POST = withErrorBoundary(async (request: NextRequest) => {
         code: insertResult.error.code,
         operation: 'restoration',
       });
-      throw new Error(`Failed to save restoration: ${insertResult.error.message}`);
+      throw internalError(`Failed to save restoration: ${insertResult.error.message}`, 'SAVE_RESTORATION_FAILED');
     }
 
     if (updateResult.error) {
