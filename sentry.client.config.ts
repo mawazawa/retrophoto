@@ -4,7 +4,7 @@ Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   // Performance Monitoring
-  tracesSampleRate: 1.0, // 100% of transactions for TTM tracking
+  tracesSampleRate: 0.2, // 20% of transactions for TTM tracking
 
   // Session Replay
   replaysSessionSampleRate: 0.1, // 10% of sessions
