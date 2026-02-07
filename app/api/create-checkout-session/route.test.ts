@@ -26,6 +26,14 @@ vi.mock('stripe', () => {
   }
 })
 
+// Mock CSRF validation — allow requests with Origin header, reject without
+vi.mock('@/lib/security/csrf', () => ({
+  validateCsrf: vi.fn().mockImplementation((request: Request) => {
+    return !!request.headers.get('origin')
+  }),
+  csrfErrorResponse: { error: 'CSRF validation failed', error_code: 'CSRF_ERROR' },
+}))
+
 // Mock auth/supabase server client
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn()

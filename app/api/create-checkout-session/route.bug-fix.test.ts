@@ -3,6 +3,12 @@ import { POST } from './route'
 import { NextRequest, NextResponse } from 'next/server'
 import { createMockSupabaseClient } from '@/tests/mocks/supabase'
 
+// Mock CSRF validation to allow test requests with Origin header
+vi.mock('@/lib/security/csrf', () => ({
+  validateCsrf: vi.fn().mockReturnValue(true),
+  csrfErrorResponse: { error: 'CSRF validation failed', error_code: 'CSRF_ERROR' },
+}))
+
 // Mock dependencies
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(),

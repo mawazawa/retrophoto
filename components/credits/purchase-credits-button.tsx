@@ -5,19 +5,26 @@ import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { generateFingerprint } from '@/lib/quota/client-tracker'
 import { toast } from '@/hooks/use-toast'
+import { WaitlistGate } from '@/components/waitlist-gate'
 
 interface PurchaseCreditsButtonProps {
   variant?: 'default' | 'outline' | 'ghost'
   size?: 'default' | 'sm' | 'lg'
   className?: string
+  isBetaGated?: boolean
 }
 
 export function PurchaseCreditsButton({
   variant = 'default',
   size = 'default',
-  className
+  className,
+  isBetaGated
 }: PurchaseCreditsButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
+
+  if (isBetaGated) {
+    return <WaitlistGate className={className} />
+  }
 
   const handlePurchase = async () => {
     setIsLoading(true)
