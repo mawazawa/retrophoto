@@ -55,7 +55,7 @@ Output artifacts:
 
           - uses: actions/setup-node@v4
             with:
-              node-version: 20
+              node-version: 24
               cache: npm
 
           - name: Install dependencies
@@ -80,7 +80,7 @@ Output artifacts:
     ```
 
     Key decisions:
-    - Node 20 LTS (stable, widely supported)
+    - Node 24 LTS "Krypton" (current Active LTS; Node 20 EOL April 2026)
     - `npm ci` for reproducible installs
     - Sequential steps: typecheck → lint → test → build (each fails fast)
     - Placeholder env vars for NEXT_PUBLIC_ variables (needed for build but not for runtime)

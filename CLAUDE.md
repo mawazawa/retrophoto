@@ -32,7 +32,7 @@ npm run lighthouse   # Performance audit (Lighthouse CI)
 | Framework | Next.js 15.5 (App Router), React 19 |
 | Language | TypeScript 5.7 (strict mode) |
 | Styling | Tailwind CSS 4.0, shadcn/ui (New York style) |
-| Animation | Framer Motion, tailwindcss-animate |
+| Animation | tailwindcss-animate |
 | Database | Supabase (PostgreSQL + RLS) |
 | Storage | Supabase Storage (signed URLs) |
 | Auth | Supabase Auth (OAuth + email via `@supabase/ssr`) |
