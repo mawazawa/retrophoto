@@ -137,6 +137,21 @@ export async function POST(request: Request) {
           break
         }
 
+        // Validate payment amount before fulfilling credits
+        const expectedAmount = parseInt(process.env.STRIPE_EXPECTED_AMOUNT || '999', 10)
+        const expectedCurrency = (process.env.STRIPE_EXPECTED_CURRENCY || 'usd').toLowerCase()
+
+        if (session.amount_total !== expectedAmount || session.currency?.toLowerCase() !== expectedCurrency) {
+          logger.error('Payment amount mismatch - skipping fulfillment', {
+            expected: { amount: expectedAmount, currency: expectedCurrency },
+            actual: { amount: session.amount_total, currency: session.currency },
+            sessionId: session.id,
+            eventId: event.id,
+          })
+          // Return 200 to prevent Stripe retries, but do NOT add credits
+          return NextResponse.json({ received: true, fulfilled: false, reason: 'amount_mismatch' })
+        }
+
         const creditsToAdd = 10
         const userId = session.client_reference_id
 

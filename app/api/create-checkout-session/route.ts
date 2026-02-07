@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, rateLimitConfigs, getRateLimitHeaders, rateLimitedResponse } from '@/lib/rate-limit'
 import { validateCsrf, csrfErrorResponse } from '@/lib/security/csrf'
+import { isEmailAllowed, isBetaModeEnabled } from '@/lib/auth/allowlist'
 import { logger } from '@/lib/observability/logger'
 import { withErrorBoundary } from '@/lib/api/error-boundary'
 import { badRequest, forbidden, serviceUnavailable } from '@/lib/api/errors'
@@ -34,6 +35,19 @@ export const POST = withErrorBoundary(async (request: NextRequest) => {
   // Use authenticated user ID OR fingerprint for guest checkout
   const userId = user?.id || fingerprint
   const userEmail = user?.email || undefined
+
+  // Beta access check — gate premium features for non-invited users
+  if (isBetaModeEnabled() && user) {
+    if (!user.email || !isEmailAllowed(user.email)) {
+      return NextResponse.json(
+        {
+          error: 'You are on the waitlist. We will notify you when access is available.',
+          error_code: 'BETA_ACCESS_DENIED',
+        },
+        { status: 403 }
+      )
+    }
+  }
 
   if (!userId) {
     throw badRequest('Missing user ID or fingerprint', 'MISSING_IDENTIFIER')

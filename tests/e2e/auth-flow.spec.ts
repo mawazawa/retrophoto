@@ -5,14 +5,15 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Authentication Flow E2E Tests', () => {
   const PRODUCTION_URL = 'https://retrophotoai.com';
-  const TEST_EMAIL = 'mathieuwauters@gmail.com';
-  const TEST_PASSWORD = 'Karmaisabitch2025$';
+  const TEST_EMAIL = process.env.TEST_EMAIL || '';
+  const TEST_PASSWORD = process.env.TEST_PASSWORD || '';
 
   test.beforeEach(async ({ page }) => {
     await page.goto(PRODUCTION_URL);
   });
 
   test('[T022] should authenticate user with provided credentials', async ({ page }) => {
+    test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not configured');
     // Step 1: Navigate to app
     await expect(page).toHaveTitle(/RetroPhoto/);
     
@@ -47,6 +48,7 @@ test.describe('Authentication Flow E2E Tests', () => {
   });
 
   test('should handle sign out flow', async ({ page }) => {
+    test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not configured');
     // First sign in
     const signInButton = page.getByRole('button', { name: /sign in|login/i });
     await signInButton.click();
@@ -68,6 +70,7 @@ test.describe('Authentication Flow E2E Tests', () => {
   });
 
   test('should persist authentication across page reloads', async ({ page }) => {
+    test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not configured');
     // Sign in
     const signInButton = page.getByRole('button', { name: /sign in|login/i });
     await signInButton.click();
@@ -87,6 +90,7 @@ test.describe('Authentication Flow E2E Tests', () => {
   });
 
   test('should show user-specific features when authenticated', async ({ page }) => {
+    test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not configured');
     // Sign in
     const signInButton = page.getByRole('button', { name: /sign in|login/i });
     await signInButton.click();
@@ -113,6 +117,7 @@ test.describe('Authentication Flow E2E Tests', () => {
   });
 
   test('should handle authentication errors', async ({ page }) => {
+    test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not configured');
     const signInButton = page.getByRole('button', { name: /sign in|login/i });
     await signInButton.click();
     
@@ -126,6 +131,7 @@ test.describe('Authentication Flow E2E Tests', () => {
   });
 
   test('should redirect to auth callback correctly', async ({ page }) => {
+    test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not configured');
     // Test auth callback URL
     await page.goto(`${PRODUCTION_URL}/auth/callback`);
     
