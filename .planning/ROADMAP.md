@@ -7,8 +7,8 @@
 
 | Plan | Tasks | Status | Requirements |
 |------|-------|--------|--------------|
-| 01-1 | CSRF localhost fix, credential removal | `pending` | REQ-SEC-01, REQ-SEC-02 |
-| 01-2 | Stripe price validation | `pending` | REQ-SEC-03 |
+| 01-1 | CSRF localhost fix, credential removal | `completed` | REQ-SEC-01, REQ-SEC-02 |
+| 01-2 | Stripe price validation | `completed` | REQ-SEC-03 |
 
 **Depends on**: nothing
 **Estimated effort**: 2-3 hours
@@ -21,8 +21,8 @@
 
 | Plan | Tasks | Status | Requirements |
 |------|-------|--------|--------------|
-| 02-1 | Allowlist module, middleware integration, checkout gating | `pending` | REQ-ACL-01 through REQ-ACL-05 |
-| 02-2 | Waitlist UI component, upgrade prompt modification | `pending` | REQ-ACL-03 |
+| 02-1 | Allowlist module, middleware integration, checkout gating | `completed` | REQ-ACL-01 through REQ-ACL-05 |
+| 02-2 | Waitlist UI component, upgrade prompt modification | `completed` | REQ-ACL-03 |
 
 **Depends on**: Phase 01
 **Estimated effort**: 3-4 hours
@@ -35,8 +35,8 @@
 
 | Plan | Tasks | Status | Requirements |
 |------|-------|--------|--------------|
-| 03-1 | Vercel env vars, Stripe live webhook, live product/price | `pending` | REQ-INF-01 through REQ-INF-03 |
-| 03-2 | Vercel cron configuration, Supabase Pro upgrade | `pending` | REQ-INF-04, REQ-INF-05 |
+| 03-1 | Vercel env vars, Stripe live webhook, live product/price | `pending (manual)` | REQ-INF-01 through REQ-INF-03 |
+| 03-2 | Vercel cron configuration, Supabase Pro upgrade | `code complete` | REQ-INF-04, REQ-INF-05 |
 
 **Depends on**: Phase 01 (security fixes must be in the deployed code)
 **Can parallel with**: Phase 02, Phase 04
@@ -50,7 +50,7 @@
 
 | Plan | Tasks | Status | Requirements |
 |------|-------|--------|--------------|
-| 04-1 | GitHub Actions workflow, build verification | `pending` | REQ-CI-01, REQ-CI-02 |
+| 04-1 | GitHub Actions workflow, build verification | `completed` | REQ-CI-01, REQ-CI-02 |
 
 **Depends on**: nothing
 **Can parallel with**: Phase 02, Phase 03
@@ -64,7 +64,7 @@
 
 | Plan | Tasks | Status | Requirements |
 |------|-------|--------|--------------|
-| 05-1 | Sentry sampling, Upstash Redis setup | `pending` | REQ-OPS-01, REQ-OPS-02 |
+| 05-1 | Sentry sampling, Upstash Redis setup | `code complete` | REQ-OPS-01, REQ-OPS-02 |
 | 05-2 | Production migrations, custom domain | `pending` | REQ-OPS-03, REQ-OPS-04 |
 
 **Depends on**: Phase 03 (env vars must be set)
