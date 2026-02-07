@@ -21,10 +21,14 @@ import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 import { randomUUID } from 'crypto'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://sbwgkocarqvonkdlitdx.supabase.co'
-const supabaseServiceKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNid2drb2NhcnF2b25rZGxpdGR4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTQ2MzI1MiwiZXhwIjoyMDc1MDM5MjUyfQ.6Z5fd4YiRJPw-8Nf7b7cHnWU50WaGSbNP61Qx9YKQns'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('❌ Missing environment variables: NEXT_PUBLIC_SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY')
+  console.error('   Please set these in your .env.local file')
+  process.exit(1)
+}
 
 const stripeKey = process.env.STRIPE_SECRET_KEY
 
@@ -94,7 +98,7 @@ async function createTestUser() {
     .insert({
       user_id: testUserId,
       fingerprint: 'test-fingerprint-' + Date.now(),
-      credits_balance: 0,
+      available_credits: 0,
       total_credits_purchased: 0,
       credits_expired: 0,
     })
@@ -251,7 +255,7 @@ async function verifyResults(userId, transactionId) {
     .single()
 
   console.log('User Credits:', {
-    balance: userCredits?.credits_balance,
+    balance: userCredits?.available_credits,
     total_purchased: userCredits?.total_credits_purchased,
   })
 
@@ -282,7 +286,7 @@ async function verifyResults(userId, transactionId) {
   })
 
   // Verify expectations
-  const passed = userCredits?.credits_balance === 10 && batch?.credits_remaining === 10
+  const passed = userCredits?.available_credits === 10 && batch?.credits_remaining === 10
 
   if (passed) {
     console.log('\n✅ All verifications passed!')

@@ -300,7 +300,7 @@ export type Database = {
       user_credits: {
         Row: {
           created_at: string
-          credits_balance: number
+          available_credits: number
           credits_expired: number
           credits_purchased: number
           credits_used: number
@@ -314,7 +314,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          credits_balance?: number
+          available_credits?: number
           credits_expired?: number
           credits_purchased?: number
           credits_used?: number
@@ -328,7 +328,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          credits_balance?: number
+          available_credits?: number
           credits_expired?: number
           credits_purchased?: number
           credits_used?: number

@@ -35,7 +35,7 @@ The webhook is listening for the following Stripe events:
 | `STRIPE_WEBHOOK_SECRET` | ✅ Configured | Production |
 | `STRIPE_CREDITS_PRICE_ID` | ✅ Configured | Production |
 
-**Webhook Secret:** `whsec_GxDgh3JnZvWbNnByQQMww4V9rVdQ8xaY`
+**Webhook Secret:** `whsec_<YOUR_WEBHOOK_SECRET>`
 
 ### Vercel Deployment
 

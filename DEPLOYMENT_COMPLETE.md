@@ -34,10 +34,10 @@ printf "https://retrophotoai.com" | vercel env add NEXT_PUBLIC_BASE_URL producti
 vercel env rm STRIPE_WEBHOOK_SECRET production --yes
 
 # Added correct secret
-echo "whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3" | vercel env add STRIPE_WEBHOOK_SECRET production
+echo "whsec_<YOUR_WEBHOOK_SECRET>" | vercel env add STRIPE_WEBHOOK_SECRET production
 ```
 
-**Result**: ✅ Set to `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3`
+**Result**: ✅ Set to `whsec_<YOUR_WEBHOOK_SECRET>`
 **Impact**: Stripe webhook signature verification now works, payments will credit accounts
 
 ---
@@ -81,7 +81,7 @@ grep -E "NEXT_PUBLIC_BASE_URL|STRIPE_WEBHOOK_SECRET" .env.vercel.production
 **Output**:
 ```
 NEXT_PUBLIC_BASE_URL="https://retrophotoai.com"
-STRIPE_WEBHOOK_SECRET="whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3"
+STRIPE_WEBHOOK_SECRET="whsec_<YOUR_WEBHOOK_SECRET>"
 ```
 
 **Result**: ✅ **VERIFIED** - Both critical env vars set correctly
@@ -248,7 +248,7 @@ curl "https://retrophotoai.com/api/quota?fingerprint=test-1759669677"
 ### Webhook Endpoint Status: ✅ READY
 
 **Endpoint URL**: https://retrophotoai.com/api/webhooks/stripe
-**Signing Secret**: whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3
+**Signing Secret**: whsec_<YOUR_WEBHOOK_SECRET>
 **Status**: Secret configured in Vercel ✅
 
 ### To Complete Stripe Setup:
@@ -259,7 +259,7 @@ curl "https://retrophotoai.com/api/quota?fingerprint=test-1759669677"
    - ✅ `checkout.session.completed`
    - ✅ `payment_intent.succeeded` (optional)
    - ✅ `charge.refunded` (optional)
-4. **Verify Signing Secret**: Should match `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3`
+4. **Verify Signing Secret**: Should match `whsec_<YOUR_WEBHOOK_SECRET>`
 
 **Implementation**: ✅ Already complete in code
 - Signature verification: `app/api/webhooks/stripe/route.ts:50`
@@ -348,7 +348,7 @@ User → Buy Credits → Stripe Checkout → Webhook → Credits Added
 vercel env rm NEXT_PUBLIC_BASE_URL production --yes
 printf "https://retrophotoai.com" | vercel env add NEXT_PUBLIC_BASE_URL production
 vercel env rm STRIPE_WEBHOOK_SECRET production --yes
-echo "whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3" | vercel env add STRIPE_WEBHOOK_SECRET production
+echo "whsec_<YOUR_WEBHOOK_SECRET>" | vercel env add STRIPE_WEBHOOK_SECRET production
 vercel --prod --yes
 ```
 

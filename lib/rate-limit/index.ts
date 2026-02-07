@@ -1,13 +1,18 @@
 /**
  * Rate Limiting Utility
  *
- * Simple in-memory sliding window rate limiter.
- * Can be upgraded to Redis/Upstash for distributed rate limiting.
+ * Hybrid rate limiting system with automatic fallback:
+ * - Uses Upstash Redis for distributed rate limiting when available
+ * - Falls back to in-memory limiting when Redis is not configured
  *
- * NOTE: This is per-process rate limiting. In serverless environments,
- * each function invocation may have its own store. For production,
- * consider using Redis/Upstash for distributed rate limiting.
+ * Redis is used when UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN
+ * environment variables are set.
+ *
+ * NOTE: In-memory limiting is per-process and resets on serverless cold starts.
+ * For production deployments, configure Upstash Redis for consistent rate limiting.
  */
+
+import { logger } from '@/lib/observability/logger'
 
 interface RateLimitEntry {
   count: number
@@ -64,13 +69,9 @@ export interface RateLimitResult {
 }
 
 /**
- * Check and consume rate limit for a given identifier
- *
- * @param identifier - Unique identifier (fingerprint, IP, user ID)
- * @param config - Rate limit configuration
- * @returns Rate limit result
+ * In-memory rate limit implementation (fallback)
  */
-export function checkRateLimit(
+function checkRateLimitInMemory(
   identifier: string,
   config: RateLimitConfig
 ): RateLimitResult {
@@ -120,6 +121,43 @@ export function checkRateLimit(
     limit: config.limit,
     resetInSeconds: Math.ceil((entry.resetTime - now) / 1000),
   }
+}
+
+/**
+ * Check and consume rate limit for a given identifier
+ *
+ * Automatically uses Redis if available, otherwise falls back to in-memory.
+ *
+ * @param identifier - Unique identifier (fingerprint, IP, user ID)
+ * @param config - Rate limit configuration
+ * @returns Rate limit result (Promise if using Redis, sync if in-memory)
+ */
+export async function checkRateLimit(
+  identifier: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  // Check if Redis is available and feature flag is enabled
+  const useRedis =
+    process.env.USE_REDIS_RATE_LIMIT !== 'false' && // Allow disabling via flag
+    process.env.UPSTASH_REDIS_REST_URL &&
+    process.env.UPSTASH_REDIS_REST_TOKEN
+
+  if (useRedis) {
+    try {
+      // Lazy import to avoid loading Redis client when not needed
+      const { checkRateLimitUpstash } = await import('./upstash')
+      return await checkRateLimitUpstash(identifier, config)
+    } catch (error) {
+      // Log error and fallback to in-memory
+      logger.warn('Redis rate limit check failed, falling back to in-memory', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+      return checkRateLimitInMemory(identifier, config)
+    }
+  }
+
+  // Use in-memory rate limiting
+  return checkRateLimitInMemory(identifier, config)
 }
 
 /**

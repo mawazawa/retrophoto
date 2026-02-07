@@ -30,7 +30,7 @@ export function CreditBalance({ className, showErrorToast = false }: CreditBalan
         // Query user_credits table
         const { data, error } = await supabase
           .from('user_credits')
-          .select('credits_balance')
+          .select('available_credits')
           .eq('user_id', user.id)
           .single()
 
@@ -42,7 +42,7 @@ export function CreditBalance({ className, showErrorToast = false }: CreditBalan
           }
           setBalance(0)
         } else {
-          setBalance(data?.credits_balance ?? 0)
+          setBalance(data?.available_credits ?? 0)
         }
       } catch (error) {
         if (showErrorToast) {

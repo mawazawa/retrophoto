@@ -82,7 +82,7 @@ console.log(process.env.NEXT_PUBLIC_BASE_URL)
 3. Settings → Environment Variables
 4. Add or update:
    - **Name**: `STRIPE_WEBHOOK_SECRET`
-   - **Value**: `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3`
+   - **Value**: `whsec_<YOUR_WEBHOOK_SECRET>`
    - **Environment**: Production ✓
 5. **Redeploy** application
 
@@ -110,7 +110,7 @@ Environment: [x] Production [ ] Preview [ ] Development
 
 # 2. STRIPE_WEBHOOK_SECRET
 Name: STRIPE_WEBHOOK_SECRET
-Value: whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3
+Value: whsec_<YOUR_WEBHOOK_SECRET>
 Environment: [x] Production [ ] Preview [ ] Development
 ```
 
@@ -255,7 +255,7 @@ All documentation pushed to GitHub:
 
 3. **[STRIPE_WEBHOOK_SETUP.md](STRIPE_WEBHOOK_SETUP.md)**
    - Stripe Dashboard configuration
-   - Correct webhook secret: `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3`
+   - Correct webhook secret: `whsec_<YOUR_WEBHOOK_SECRET>`
    - Testing procedures
    - Troubleshooting guide
 
@@ -349,7 +349,7 @@ All documentation pushed to GitHub:
 2. **Set Environment Variables**
    - Settings → Environment Variables
    - Add `NEXT_PUBLIC_BASE_URL=https://retrophotoai.com`
-   - Update `STRIPE_WEBHOOK_SECRET=whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3`
+   - Update `STRIPE_WEBHOOK_SECRET=whsec_<YOUR_WEBHOOK_SECRET>`
 
 3. **Redeploy**
    - Deployments → Latest → Redeploy

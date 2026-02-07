@@ -2,7 +2,7 @@
 
 **Project**: RetroPhoto AI
 **Webhook Endpoint**: https://retrophotoai.com/api/webhooks/stripe
-**Webhook Secret**: `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3`
+**Webhook Secret**: `whsec_<YOUR_WEBHOOK_SECRET>`
 **Status**: 🟢 SECRET CONFIRMED, READY TO CONFIGURE
 
 ---
@@ -55,7 +55,7 @@ Check these events (minimum required):
 After creating the endpoint:
 1. Click on the endpoint URL in the list
 2. Click **"Reveal"** next to "Signing secret"
-3. **Verify it matches**: `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3`
+3. **Verify it matches**: `whsec_<YOUR_WEBHOOK_SECRET>`
 
 **✅ CONFIRMED**: This is the correct webhook secret for your endpoint.
 
@@ -72,14 +72,14 @@ After creating the endpoint:
 
 **If Variable Exists**:
 - Click "Edit" (pencil icon)
-- **Verify value**: `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3`
+- **Verify value**: `whsec_<YOUR_WEBHOOK_SECRET>`
 - **Environment**: Production ✓
 - Click "Save"
 
 **If Variable Doesn't Exist**:
 - Click "Add New"
 - **Name**: `STRIPE_WEBHOOK_SECRET`
-- **Value**: `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3`
+- **Value**: `whsec_<YOUR_WEBHOOK_SECRET>`
 - **Environment**: Production ✓ (also check Preview if testing)
 - Click "Save"
 
@@ -88,7 +88,7 @@ After creating the endpoint:
 ```bash
 # From project root
 vercel env add STRIPE_WEBHOOK_SECRET production
-# When prompted, paste: whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3
+# When prompted, paste: whsec_<YOUR_WEBHOOK_SECRET>
 ```
 
 ---
@@ -275,7 +275,7 @@ After completing this setup, verify these are set in Vercel Production:
 # Stripe Configuration
 STRIPE_SECRET_KEY=sk_live_*** (from .env.local)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_*** (from .env.local)
-STRIPE_WEBHOOK_SECRET=whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3 ✓
+STRIPE_WEBHOOK_SECRET=whsec_<YOUR_WEBHOOK_SECRET> ✓
 STRIPE_CREDITS_PRICE_ID=price_*** (from .env.local)
 ```
 
@@ -287,11 +287,11 @@ STRIPE_CREDITS_PRICE_ID=price_*** (from .env.local)
 - [ ] Logged into Stripe Dashboard (Live mode)
 - [ ] Webhook endpoint exists: https://retrophotoai.com/api/webhooks/stripe
 - [ ] Event `checkout.session.completed` is selected
-- [ ] Signing secret matches: `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3`
+- [ ] Signing secret matches: `whsec_<YOUR_WEBHOOK_SECRET>`
 
 **Vercel Dashboard**:
 - [ ] `STRIPE_WEBHOOK_SECRET` environment variable set
-- [ ] Value: `whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3`
+- [ ] Value: `whsec_<YOUR_WEBHOOK_SECRET>`
 - [ ] Environment: Production ✓
 - [ ] Application redeployed after env var change
 
@@ -335,6 +335,6 @@ STRIPE_CREDITS_PRICE_ID=price_*** (from .env.local)
 
 **Webhook Secret (For Reference)**:
 ```
-whsec_jOYGvRP27w6pdMUBvA9zGv2WBKKAFWC3
+whsec_<YOUR_WEBHOOK_SECRET>
 ```
 ⚠️ Keep this secret! Only share with Vercel environment variables.

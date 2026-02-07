@@ -14,6 +14,7 @@
  */
 
 import { onCLS, onFCP, onINP, onLCP, onTTFB, Metric } from 'web-vitals'
+import { logger } from '@/lib/observability/logger'
 
 // Threshold definitions for good/needs improvement/poor
 // FID is deprecated in web-vitals v4, replaced by INP
@@ -85,7 +86,8 @@ async function reportMetric(metric: Metric) {
 
   // Log in development
   if (process.env.NODE_ENV === 'development') {
-    console.log(`[Web Vital] ${metric.name}:`, {
+    logger.debug('Web Vital metric', {
+      name: metric.name,
       value: metric.value.toFixed(2),
       rating: body.rating,
     })

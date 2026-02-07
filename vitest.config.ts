@@ -10,8 +10,9 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     exclude: [
       ...configDefaults.exclude,
-      '**/tests/e2e/**',  // Exclude Playwright E2E tests
-      '**/*.spec.ts',     // Exclude all .spec.ts files (Playwright convention)
+      '**/tests/e2e/**',         // Exclude Playwright E2E tests
+      '**/tests/integration/**', // Exclude integration tests (require running server)
+      '**/*.spec.ts',            // Exclude all .spec.ts files (Playwright convention)
     ],
   },
   resolve: {

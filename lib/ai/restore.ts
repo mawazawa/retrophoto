@@ -1,5 +1,6 @@
 import Replicate from 'replicate';
 import pRetry from 'p-retry';
+import { logger } from '@/lib/observability/logger';
 
 // Lazy initialization to avoid crash at import time
 let replicateClient: Replicate | null = null;
@@ -22,8 +23,8 @@ export async function restoreImage(imageUrl: string): Promise<string> {
   const run = async () => {
     try {
       const replicate = getReplicateClient();
-      console.log('[REPLICATE] Starting restoration for:', imageUrl);
-      
+      logger.debug('Starting Replicate restoration', { imageUrl });
+
       const output = await replicate.run(
         'jingyunliang/swinir:660d922d33153019e33c487636deb165e8d88df7c40d7f9e3e9f7bf31d92a5f7',
         {
@@ -36,7 +37,7 @@ export async function restoreImage(imageUrl: string): Promise<string> {
         }
       );
 
-      console.log('[REPLICATE] Restoration completed successfully');
+      logger.debug('Replicate restoration completed successfully', { imageUrl });
 
       // Replicate returns a string URL for this model
       if (typeof output !== 'string') {
@@ -45,7 +46,10 @@ export async function restoreImage(imageUrl: string): Promise<string> {
 
       return output;
     } catch (error) {
-      console.error('[REPLICATE] Error:', error instanceof Error ? error.message : String(error));
+      logger.error('Replicate restoration error', {
+        imageUrl,
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   };
@@ -55,9 +59,10 @@ export async function restoreImage(imageUrl: string): Promise<string> {
     retries: 1,
     minTimeout: 1000,
     onFailedAttempt: (error) => {
-      console.error(
-        `[REPLICATE] Attempt ${error.attemptNumber} failed. Retries left: ${error.retriesLeft}`
-      );
+      logger.warn('Replicate attempt failed', {
+        attemptNumber: error.attemptNumber,
+        retriesLeft: error.retriesLeft
+      });
     },
   });
 }

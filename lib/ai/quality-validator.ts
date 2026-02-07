@@ -5,6 +5,7 @@
 
 import sharp from 'sharp';
 import type { QualityReport, ImageAnalysis } from './types';
+import { logger } from '@/lib/observability/logger';
 
 /**
  * Validate restored image quality using FADGI guidelines
@@ -15,7 +16,7 @@ export async function validateQuality(
   analysis: ImageAnalysis
 ): Promise<QualityReport> {
   try {
-    console.log('[QUALITY] Starting validation for:', restoredUrl);
+    logger.debug('Starting quality validation', { restoredUrl });
 
     // Fetch and analyze restored image
     const imageBuffer = await fetch(restoredUrl).then((r) => r.arrayBuffer());
@@ -97,7 +98,8 @@ export async function validateQuality(
       processing_notes: qualityIssues.length === 0 ? 'Excellent quality' : undefined,
     };
 
-    console.log('[QUALITY] Validation complete:', {
+    logger.debug('Quality validation complete', {
+      restoredUrl,
       fadgi_score: report.fadgi_score,
       grade: report.grade,
       recommendation: report.recommendation,
@@ -105,7 +107,10 @@ export async function validateQuality(
 
     return report;
   } catch (error) {
-    console.error('[QUALITY] Validation failed:', error);
+    logger.error('Quality validation failed', {
+      restoredUrl,
+      error: error instanceof Error ? error.message : String(error)
+    });
 
     // Return default report on failure
     return {

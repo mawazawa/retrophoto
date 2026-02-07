@@ -6,6 +6,7 @@
  */
 
 import * as Sentry from '@sentry/nextjs'
+import { logger } from '@/lib/observability/logger'
 
 export interface TTMMetric {
   sessionId: string
@@ -96,7 +97,7 @@ export function trackRestorationFailure(
 export function trackQuotaExceeded(fingerprint: string): void {
   // Don't send to Sentry (expected behavior)
   // Just log for local debugging
-  console.info('Quota exceeded for fingerprint:', fingerprint)
+  logger.info('Quota exceeded', { fingerprint })
 }
 
 /**
